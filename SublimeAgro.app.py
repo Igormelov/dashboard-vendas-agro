@@ -116,7 +116,6 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    # CLIENTES SEM FUNDO CLARO - IGUAL AOS OUTROS
     st.markdown("""
     <div style="background:#1a3523; padding:8px 10px 0 10px;">
         <div style="display:flex; align-items:center; justify-content:space-between; padding:4px 2px;">

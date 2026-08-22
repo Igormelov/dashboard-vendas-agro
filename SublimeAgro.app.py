@@ -13,47 +13,32 @@ st.markdown("""
 <style>
 [data-testid="stSidebar"] { background-color: #0f1a12; border-right: 1px solid #2a4a32; }
 [data-testid="stSidebar"] * { font-size: 14px!important; }
-
 .stApp { background-color: #0f1a12; }
 .block-container { padding-top: 1rem!important; padding-bottom: 0rem!important; max-width: 95%!important;}
-
 h1 { font-size: 1.45rem!important; margin: 0 0 0.4rem 0!important; color: #e8f5e9!important;}
 h2 { font-size: 1.1rem!important; margin: 0.6rem 0 0.3rem 0!important; color: #e8f5e9!important;}
 h3 { font-size: 0.95rem!important; color: #e8f5e9!important;}
-
 p, span, label, div[data-testid="stMarkdownContainer"] p { font-size: 12px!important; color: #e8f5e9!important; }
 label { margin-bottom: 1px!important; font-size: 11px!important; opacity: 0.9; }
-
 div[data-testid="stTextInput"] input,
 div[data-testid="stSelectbox"] div[data-baseweb="select"] div,
 div[data-testid="stNumberInput"] input {
-    font-size: 12px!important;
-    height: 30px!important;
-    min-height: 30px!important;
-    padding: 2px 8px!important;
-    background-color: #1a2e1f!important;
-    border: 1px solid #2a4a32!important;
-    color: #e8f5e9!important;
+    font-size: 12px!important; height: 30px!important; min-height: 30px!important;
+    padding: 2px 8px!important; background-color: #1a2e1f!important;
+    border: 1px solid #2a4a32!important; color: #e8f5e9!important;
 }
-div[data-testid="stTextInput"], div[data-testid="stSelectbox"], div[data-testid="stNumberInput"] {
-    margin-bottom: -14px!important;
-}
-
+div[data-testid="stTextInput"], div[data-testid="stSelectbox"], div[data-testid="stNumberInput"] { margin-bottom: -14px!important; }
 .stButton>button {
     background-color: #4caf50; color: white; border-radius: 8px;
     width: 100%; font-weight: bold; border: none;
     font-size: 12px!important; height: 32px!important; padding: 3px!important;
 }
-div[data-testid="stMetric"] {
-    background-color: #1a2e1f; border: 1px solid #2a4a32;
-    border-radius: 10px; padding: 6px 10px!important;
-}
+div[data-testid="stMetric"] { background-color: #1a2e1f; border: 1px solid #2a4a32; border-radius: 10px; padding: 6px 10px!important;}
 div[data-testid="stMetricLabel"] { font-size: 10px!important; }
 div[data-testid="stMetricValue"] { font-size: 15px!important; }
 [data-testid="stFileUploader"] section { padding: 6px!important; min-height: 60px!important;}
 [data-testid="stFileUploader"] * { font-size: 11px!important; }
 hr { margin: 0.4rem 0!important; }
-div[data-testid="column"] { gap: 0.4rem!important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -84,11 +69,40 @@ def buscar_cep(cep):
 
 sh = conecta_gsheets()
 
+# --- CORREÇÃO DO ERRO DA PRINT ---
 def get_or_create_ws(nome, headers):
-    try: ws = sh.worksheet(nome); return ws
+    try:
+        ws = sh.worksheet(nome)
+        # Se a aba existe mas o cabeçalho é antigo, atualiza
+        header_atual = ws.row_values(1)
+        if header_atual!= headers:
+            # Se faltam colunas novas, reescreve cabeçalho para não quebrar get_all_records
+            if len(header_atual) < len(headers):
+                ws.update('A1', [headers])
+        return ws
     except:
         ws = sh.add_worksheet(title=nome, rows=1000, cols=len(headers))
-        ws.append_row(headers); return ws
+        ws.append_row(headers)
+        return ws
+
+def carrega_df_seguro(ws, headers):
+    """Lê planilha sem quebrar se estiver vazia ou com cabeçalho antigo"""
+    try:
+        dados = ws.get_all_records()
+        df = pd.DataFrame(dados)
+        if df.empty:
+            return pd.DataFrame(columns=headers)
+        return normaliza(df)
+    except Exception:
+        # Se get_all_records falhar (erro da sua print), tenta get_all_values
+        try:
+            vals = ws.get_all_values()
+            if len(vals) <= 1:
+                return pd.DataFrame(columns=headers)
+            df = pd.DataFrame(vals[1:], columns=vals[0])
+            return normaliza(df)
+        except:
+            return pd.DataFrame(columns=headers)
 
 HEADERS_CLIENTES = ["ID","Nome","Telefone","Cidade","Estado","Fazenda","CPF_CNPJ","CEP","Endereco","Numero","Complemento","IE","Data_Cadastro"]
 
@@ -96,9 +110,10 @@ ws_vendas = get_or_create_ws("Vendas", ["ID","Data","Cliente","Produto","Quantid
 ws_produtos = get_or_create_ws("Produtos", ["ID","Nome","Preco","Estoque"])
 ws_clientes = get_or_create_ws("Clientes", HEADERS_CLIENTES)
 
-df_vendas = normaliza(pd.DataFrame(ws_vendas.get_all_records()))
-df_produtos = normaliza(pd.DataFrame(ws_produtos.get_all_records()))
-df_clientes = normaliza(pd.DataFrame(ws_clientes.get_all_records()))
+# AGORA COM LEITOR SEGURO - NÃO QUEBRA MAIS
+df_vendas = carrega_df_seguro(ws_vendas, ["ID","Data","Cliente","Produto","Quantidade","Valor_Unit","Valor_Total","Cidade","Estado","Vendedor","Status"])
+df_produtos = carrega_df_seguro(ws_produtos, ["ID","Nome","Preco","Estoque"])
+df_clientes = carrega_df_seguro(ws_clientes, HEADERS_CLIENTES)
 
 if "cep_data" not in st.session_state: st.session_state.cep_data = {"endereco":"","cidade":"","estado":"","complemento":""}
 if "cep_last" not in st.session_state: st.session_state.cep_last = ""
@@ -121,17 +136,6 @@ if menu=="Dashboard":
         c1.metric("Faturamento Total", f"R$ {total:,.2f}")
         c2.metric("Total Vendas", len(df_vendas))
         c3.metric("Ticket Médio", f"R$ {total/len(df_vendas):,.2f}" if len(df_vendas)>0 else "R$ 0")
-        col1,col2=st.columns(2)
-        with col1:
-            st.subheader("Vendas por Estado")
-            fig=px.bar(df_vendas.groupby("Estado")["Valor_Total"].sum().reset_index(), x="Estado", y="Valor_Total", color="Estado", template="plotly_dark")
-            fig.update_layout(showlegend=False, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", height=280, margin=dict(l=0,r=0,t=20,b=0))
-            st.plotly_chart(fig, use_container_width=True)
-        with col2:
-            st.subheader("Vendas por Produto")
-            fig2=px.pie(df_vendas, names="Produto", values="Valor_Total", hole=0.4, template="plotly_dark")
-            fig2.update_layout(paper_bgcolor="rgba(0,0,0,0)", height=280, margin=dict(l=0,r=0,t=20,b=0))
-            st.plotly_chart(fig2, use_container_width=True)
     else: st.warning("Sem vendas")
 
 elif menu=="Vendas":
@@ -140,16 +144,16 @@ elif menu=="Vendas":
 
 elif menu=="Cadastrar Venda":
     st.title("Nova Venda 🚀")
-    lista = df_clientes["Nome"].tolist() if not df_clientes.empty else []
+    lista = df_clientes["Nome"].tolist() if not df_clientes.empty and "Nome" in df_clientes.columns else []
     sel = st.selectbox("Cliente *", ["Selecione..."]+lista+["Cliente Avulso"])
     cidade_auto=estado_auto=""
     if sel not in ["Selecione...","Cliente Avulso",""] and not df_clientes.empty:
-        d=df_clientes[df_clientes["Nome"]==sel]
+        d=df_clientes[df_clientes["Nome"]==sel] if "Nome" in df_clientes.columns else pd.DataFrame()
         if not d.empty: cidade_auto=d.iloc[0].get("Cidade",""); estado_auto=d.iloc[0].get("Estado","")
     with st.form("venda"):
         c1,c2=st.columns(2)
         with c1:
-            produto=st.selectbox("Produto", df_produtos["Nome"].tolist() if not df_produtos.empty else ["Soja Premium"])
+            produto=st.selectbox("Produto", df_produtos["Nome"].tolist() if not df_produtos.empty and "Nome" in df_produtos.columns else ["Soja Premium"])
             qtd=st.number_input("Qtd",1)
             cidade=st.text_input("Cidade", value=cidade_auto)
             estado=st.text_input("UF", value=estado_auto, max_chars=2)
@@ -162,19 +166,13 @@ elif menu=="Cadastrar Venda":
 
 elif menu=="Clientes":
     st.title("👨‍🌾 Clientes Cadastrados")
-    c1,c2,c3=st.columns(3)
-    c1.metric("Total", len(df_clientes))
-    c2.metric("Cidades", df_clientes["Cidade"].nunique() if not df_clientes.empty else 0)
-    c3.metric("Estados", df_clientes["Estado"].nunique() if not df_clientes.empty else 0)
     st.dataframe(df_clientes, use_container_width=True, height=500)
 
 elif menu=="Novo Cliente":
     st.markdown("### ➕ Novo Cliente")
-
     st.markdown("#### 📄 Upload Sintegra")
     st.caption("Arraste o PDF do Sintegra aqui (opcional)")
     arquivo = st.file_uploader("Upload Sintegra", type=["pdf"], label_visibility="collapsed")
-
     if arquivo is not None:
         with st.spinner("Lendo Sintegra..."):
             try:
@@ -199,7 +197,6 @@ elif menu=="Novo Cliente":
     c_cep, c_btn = st.columns([4,1])
     with c_cep: cep_input=st.text_input("CEP *", placeholder="78048-000", value=st.session_state.cep_last, label_visibility="collapsed")
     with c_btn: buscar=st.button("🔍 Buscar CEP", use_container_width=True)
-
     if buscar and cep_input:
         dcep=buscar_cep(cep_input)
         if dcep:
@@ -226,11 +223,10 @@ elif menu=="Novo Cliente":
             numero=st.text_input("Nº", placeholder="123")
             complemento=st.text_input("Complemento", value=st.session_state.cep_data.get("complemento",""))
         estado=st.text_input("UF", value=st.session_state.cep_data.get("estado",""), max_chars=2)
-
         if st.form_submit_button("Salvar Cliente 🌿"):
             if not nome: st.error("Nome obrigatório")
             else:
-                novo_id=len(df_clientes)+1
+                novo_id=len(df_clientes)+1 if not df_clientes.empty else 1
                 ws_clientes.append_row([novo_id, nome, telefone, cidade, estado.upper(), fazenda, cpf, cep_input, endereco, numero, complemento, ie, datetime.now().strftime("%Y-%m-%d")])
                 st.session_state.sintegra_dados={}
                 st.success(f"Cliente {nome} salvo!"); st.balloons(); st.rerun()

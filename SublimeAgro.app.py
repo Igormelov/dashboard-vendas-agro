@@ -3,176 +3,144 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
-import requests
-import time
+import requests, time, urllib.parse
+import streamlit.components.v1 as components
 
-st.set_page_config(page_title="SUBLIME Agro - Prospecção", layout="wide", page_icon="🌱", initial_sidebar_state="expanded")
+st.set_page_config(page_title="SUBLIME Agro FREE", layout="wide", page_icon="🌱")
 
-st.markdown("""
-<style>
-.stApp { background: #0f2315!important; }
-[data-testid="stHeader"] { background: #0f2315!important; }
-h1, h2, h3, p, label { color: white!important; }
-div[data-testid="stTextInput"] input, div[data-testid="stSelectbox"] div[data-baseweb="select"] {
-    background: #1e3a26!important; color: white!important; border: 1.5px solid #2e6b3a!important;
-}
-</style>
-""", unsafe_allow_html=True)
+st.markdown("""<style>.stApp{background:#0f2315!important} h1,h2,h3,p,label{color:white!important}</style>""", unsafe_allow_html=True)
 
 @st.cache_resource
 def conecta():
-    scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-    creds_dict = dict(st.secrets["gcp_service_account"])
+    scope=["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"]
+    creds_dict=dict(st.secrets["gcp_service_account"])
     if "\\n" in creds_dict["private_key"]:
-        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
-    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
-    client = gspread.authorize(creds)
+        creds_dict["private_key"]=creds_dict["private_key"].replace("\\n","\n")
+    creds=Credentials.from_service_account_info(creds_dict, scopes=scope)
+    client=gspread.authorize(creds)
     return client.open_by_key(st.secrets["SPREADSHEET_ID"])
 
-sh = conecta()
-HEADERS = ["ID","Nome","Tipo","Telefone","Cidade","Estado","Endereco","Fonte","Data_Prospeccao","Status"]
-try:
-    ws = sh.worksheet("Prospects")
+sh=conecta()
+HEADERS=["ID","Nome","Tipo","Telefone","Cidade","Estado","Endereco","Fonte","Data","Status"]
+try: ws=sh.worksheet("Prospects")
 except:
-    ws = sh.add_worksheet(title="Prospects", rows=2000, cols=len(HEADERS))
+    ws=sh.add_worksheet(title="Prospects", rows=2000, cols=len(HEADERS))
     ws.append_row(HEADERS)
 
-def get_coordenadas(cidade, estado):
+def get_latlon(cidade, estado):
     try:
-        url = f"https://nominatim.openstreetmap.org/search?q={cidade},{estado},Brasil&format=json&limit=1"
-        r = requests.get(url, headers={"User-Agent":"SUBLIME-Agro/1.0"}, timeout=10)
-        if r.status_code == 200 and r.json():
-            d = r.json()[0]
-            return float(d["lat"]), float(d["lon"])
+        url=f"https://nominatim.openstreetmap.org/search?q={cidade},{estado},Brasil&format=json&limit=1"
+        r=requests.get(url, headers={"User-Agent":"SUBLIME"}, timeout=10)
+        if r.json(): return float(r.json()[0]["lat"]), float(r.json()[0]["lon"])
     except: pass
-    return None, None
+    return None,None
 
-def buscar_overpass_com_retry(lat, lon, raio):
-    endpoints = [
-        "https://overpass.kumi.systems/api/interpreter",
-        "https://overpass-api.de/api/interpreter",
-        "https://overpass.openstreetmap.ru/api/interpreter"
-    ]
-    query = f"""
-    [out:json][timeout:25];
-    (
-      node["landuse"="farmyard"](around:{raio},{lat},{lon});
-      way["landuse"="farmyard"](around:{raio},{lat},{lon});
-      node["shop"="agrarian"](around:{raio},{lat},{lon});
-      node["industrial"="agricultural"](around:{raio},{lat},{lon});
-      node["name"~"confinamento|fazenda|agro|racao|cooperativa",i](around:{raio},{lat},{lon});
-    );
-    out center 80;
-    """
-    for endpoint in endpoints:
-        try:
-            r = requests.post(endpoint, data={"data": query}, timeout=30, headers={"User-Agent":"SUBLIME-Agro/1.0"})
-            if r.status_code == 200:
-                return r.json().get("elements", [])
-        except:
-            time.sleep(1)
-            continue
-    return []
-
-def buscar_nominatim_texto(cidade, estado, termos):
-    """Fallback: busca textual direta"""
-    resultados = []
+def buscar_free(cidade, estado, termos):
+    """Busca 100% free - Photon + Nominatim + Overpass Kumi"""
+    resultados=[]
+    # 1. Photon (mais estável que Overpass)
     for termo in termos:
         try:
-            q = f"{termo} {cidade} {estado}"
-            url = f"https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=15&addressdetails=1"
-            r = requests.get(url, headers={"User-Agent":"SUBLIME-Agro/1.0"}, timeout=10)
-            if r.status_code == 200:
-                for item in r.json():
+            q=f"{termo} {cidade} {estado}"
+            # Photon
+            url=f"https://photon.komoot.io/api/?q={urllib.parse.quote(q)}&limit=20&lang=pt"
+            r=requests.get(url, timeout=10)
+            if r.status_code==200:
+                for f in r.json().get("features",[]):
+                    props=f.get("properties",{})
                     resultados.append({
-                        "Nome": item.get("display_name","").split(",")[0],
+                        "Nome": props.get("name", termo.title()),
                         "Tipo": termo,
-                        "Endereco": item.get("display_name",""),
-                        "Telefone": "",
-                        "Cidade": cidade,
-                        "Estado": estado,
-                        "Fonte": "Nominatim",
-                        "Lat": item.get("lat"),
-                        "Lon": item.get("lon"),
-                        "_raw": item
+                        "Endereco": f"{props.get('street','')} {props.get('city','')} {props.get('state','')}",
+                        "Telefone": props.get("phone",""),
+                        "Cidade": cidade, "Estado": estado,
+                        "Fonte": "Photon/OSM",
+                        "Lat": f["geometry"]["coordinates"][1],
+                        "Lon": f["geometry"]["coordinates"][0]
                     })
-            time.sleep(1) # respeita limite nominatim
+            time.sleep(0.5)
         except: continue
+
+    # 2. Overpass Kumi (backup)
+    lat,lon=get_latlon(cidade,estado)
+    if lat:
+        try:
+            query=f"""[out:json][timeout:20];(node["shop"="agrarian"](around:30000,{lat},{lon});node["landuse"="farmyard"](around:30000,{lat},{lon});way["landuse"="farmyard"](around:30000,{lat},{lon}););out center 50;"""
+            r=requests.post("https://overpass.kumi.systems/api/interpreter", data={"data":query}, timeout=20)
+            if r.status_code==200:
+                for el in r.json().get("elements",[]):
+                    tags=el.get("tags",{})
+                    if tags.get("name"):
+                        resultados.append({
+                            "Nome": tags["name"], "Tipo": "Fazenda OSM",
+                            "Endereco": f"{cidade}-{estado}", "Telefone": tags.get("phone",""),
+                            "Cidade": cidade, "Estado": estado, "Fonte": "Overpass Kumi",
+                            "Lat": el.get("lat"), "Lon": el.get("lon")
+                        })
+        except: pass
     return resultados
 
 with st.sidebar:
-    st.markdown("""
-    <div style="background:white; padding:12px; border-radius:12px; text-align:center; margin-bottom:10px;">
-        <div style="font-weight:900; font-size:20px; color:#1a2a4a;">🌿 SUBLIME Agro</div>
-        <div style="font-size:12px; background:#c5e8c8; display:inline-block; padding:2px 8px; border-radius:6px; color:#1a4a2a; font-weight:700;">PROSPECÇÃO v4.5</div>
-    </div>
-    """, unsafe_allow_html=True)
-    menu = st.radio("Menu", ["🔍 Prospectar Cidade", "📋 Meus Prospects"])
+    st.markdown('<div style="background:white;padding:10px;border-radius:10px;text-align:center"><b>🌿 SUBLIME Agro</b><br><span style="background:#c5e8c8;padding:2px 6px;border-radius:5px;font-size:11px">100% FREE</span></div>', unsafe_allow_html=True)
+    menu=st.radio("Menu", ["🔍 Prospectar Cidade", "🗺️ Mapa Google (Grátis)", "📋 Meus Prospects"])
 
-if menu == "🔍 Prospectar Cidade":
-    st.title("🔍 Prospectar Clientes")
-    st.markdown("Escolha uma cidade e vamos buscar confinamentos, fazendas, fábricas de ração e cooperativas automaticamente.")
+if menu=="🔍 Prospectar Cidade":
+    st.title("🔍 Prospecção 100% Grátis - Sem Cartão")
+    c1,c2=st.columns(2)
+    with c1: cidade=st.text_input("Cidade", "Rondonópolis")
+    with c2: estado=st.text_input("UF", "MT", max_chars=2)
 
-    c1, c2, c3 = st.columns([2,1,1])
-    with c1: cidade = st.text_input("Cidade", "Rondonópolis")
-    with c2: estado = st.text_input("UF", "MT", max_chars=2)
-    with c3: raio = st.selectbox("Raio", [10,20,30,50], index=2, format_func=lambda x: f"{x} km")
+    tipos=st.multiselect("Buscar", ["confinamento","fazenda","fabrica de racao","cooperativa","agropecuaria","frigorifico"], default=["fazenda","confinamento","fabrica de racao"])
 
-    tipos = st.multiselect("O que buscar?",
-        ["Confinamento", "Fazenda", "Fabrica Racao", "Cooperativa", "Agropecuaria", "Frigorifico"],
-        default=["Confinamento", "Fazenda", "Fabrica Racao"])
+    if st.button("🚀 Buscar Agora - FREE", type="primary", use_container_width=True):
+        with st.spinner(f"Varrendo {cidade} sem API paga..."):
+            res=buscar_free(cidade,estado,tipos)
+            if res:
+                df=pd.DataFrame(res).drop_duplicates(subset=["Nome"])
+                df=df[df["Nome"].str.len()>3]
+                st.success(f"✅ {len(df)} encontrados - 100% grátis!")
+                st.dataframe(df[["Nome","Tipo","Endereco","Telefone","Fonte"]], use_container_width=True)
 
-    if st.button("🚀 Buscar Potenciais Clientes", type="primary", use_container_width=True):
-        lat, lon = get_coordenadas(cidade, estado)
-        if not lat:
-            st.error("Cidade não encontrada")
-        else:
-            st.info(f"📍 Centro de {cidade}: {lat:.4f}, {lon:.4f} | Raio {raio}km")
-
-            with st.spinner("Tentando Overpass (3 servidores)..."):
-                elementos = buscar_overpass_com_retry(lat, lon, raio*1000)
-
-            resultados = []
-            if elementos:
-                for el in elementos:
-                    tags = el.get("tags", {})
-                    nome = tags.get("name", "Fazenda sem nome")
-                    resultados.append({
-                        "Nome": nome,
-                        "Tipo": tags.get("landuse","Agro"),
-                        "Endereco": f"{tags.get('addr:street','')} {cidade}-{estado}",
-                        "Telefone": tags.get("phone",""),
-                        "Cidade": cidade, "Estado": estado.upper(),
-                        "Fonte": "Overpass", "Lat": el.get("lat"), "Lon": el.get("lon")
-                    })
-
-            # Se Overpass falhar, usa busca por texto (que funcionou no seu caso)
-            if not resultados:
-                st.warning("Overpass instável, usando busca textual (fallback) - mais lento mas funciona")
-                resultados = buscar_nominatim_texto(cidade, estado, tipos)
-
-            if resultados:
-                df_res = pd.DataFrame(resultados).drop_duplicates(subset=["Nome"])
-                st.success(f"✅ {len(df_res)} potenciais clientes encontrados!")
-                st.dataframe(df_res[["Nome","Tipo","Endereco","Telefone","Fonte"]], use_container_width=True)
-
-                if st.button(f"💾 Salvar {len(df_res)} no Sheets", type="primary"):
-                    for _, row in df_res.iterrows():
-                        ws.append_row([
-                            datetime.now().strftime("%Y%m%d%H%M%S"),
-                            row["Nome"], row["Tipo"], row["Telefone"],
-                            row["Cidade"], row["Estado"], row["Endereco"],
-                            row["Fonte"], datetime.now().strftime("%Y-%m-%d"), "Novo"
-                        ])
-                    st.success("Salvos!"); st.balloons()
+                if st.button(f"💾 Salvar {len(df)} no Sheets"):
+                    for _,r in df.iterrows():
+                        ws.append_row([datetime.now().strftime("%H%M%S"), r["Nome"], r["Tipo"], r["Telefone"], r["Cidade"], r["Estado"], r["Endereco"], r["Fonte"], datetime.now().strftime("%Y-%m-%d"), "Novo"])
+                    st.balloons(); st.success("Salvo!")
             else:
-                st.error("Nenhum resultado. Tente outra cidade ou aumente o raio.")
+                st.error("Nada no OSM. Use a aba Mapa Google.")
 
-elif menu == "📋 Meus Prospects":
-    st.title("📋 Prospects Salvos")
-    df = pd.DataFrame(ws.get_all_records())
-    if df.empty:
-        st.info("Nenhum prospect ainda")
-    else:
+elif menu=="🗺️ Mapa Google (Grátis)":
+    st.title("🗺️ Google Maps Dentro do App - Modo Manual Grátis")
+    st.markdown("Esse é o jeito grátis que funciona igual sua print - você vê o telefone e clica pra salvar")
+
+    c1,c2,c3=st.columns([2,1,1])
+    with c1: cidade=st.text_input("Cidade Maps", "Rondonópolis", key="cm")
+    with c2: estado=st.text_input("UF Maps", "MT", key="um")
+    with c3: tipo=st.selectbox("O que ver", ["fazendas de gado","confinamento","fabrica de racao","cooperativa agricola"])
+
+    lat,lon=get_latlon(cidade,estado)
+    if lat:
+        query_url=urllib.parse.quote(f"{tipo} em {cidade} {estado}")
+        maps_url=f"https://www.google.com/maps/search/{query_url}/@{lat},{lon},11z"
+        components.iframe(maps_url, height=550)
+        st.info("👆 Navegue no mapa acima. Quando achar um com telefone (66) 999..., copie e salve abaixo:")
+
+        with st.form("save_manual"):
+            c1,c2=st.columns(2)
+            with c1:
+                nome=st.text_input("Nome visto no mapa (ex: FAZENDA MORRO DA LUA)")
+                tel=st.text_input("Telefone visto")
+            with c2:
+                end=st.text_input("Endereço")
+                tipo_f=st.text_input("Tipo", value=tipo)
+            if st.form_submit_button("💾 Salvar do Mapa - Grátis"):
+                if nome:
+                    ws.append_row([datetime.now().strftime("%H%M%S"), nome, tipo_f, tel, cidade, estado, end, "Google Maps Manual FREE", datetime.now().strftime("%Y-%m-%d"), "Novo"])
+                    st.success(f"{nome} salvo!")
+
+else:
+    st.title("📋 Prospects")
+    df=pd.DataFrame(ws.get_all_records())
+    if not df.empty:
         st.dataframe(df, use_container_width=True)
         st.download_button("📥 Baixar CSV", df.to_csv(index=False), "prospects.csv")
+    else: st.info("Vazio")

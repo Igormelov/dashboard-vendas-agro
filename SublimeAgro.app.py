@@ -6,7 +6,7 @@ from datetime import datetime
 import requests
 import re
 
-st.set_page_config(page_title="SUBLIME Agro V3", layout="wide", page_icon="🌱")
+st.set_page_config(page_title="SUBLIME Agro", layout="wide", page_icon="🌱")
 
 st.markdown("""
 <style>

@@ -6,7 +6,7 @@ from datetime import datetime
 import requests
 import re
 
-st.set_page_config(page_title="SUBLIME Agro", layout="wide", page_icon="🌱")
+st.set_page_config(page_title="SUBLIME Agro V3", layout="wide", page_icon="🌱")
 
 st.markdown("""
 <style>
@@ -22,7 +22,6 @@ st.markdown("""
 .stApp { background: #eef3ee; }
 [data-testid="stSidebarNav"], header, footer, div[data-testid="InputInstructions"] { display: none!important; }
 
-/* DIMINUI ESPAÇAMENTO ENTRE OPÇÕES - BEM ENQUADRADO */
 [data-testid="stSidebar"].stVerticalBlock { gap: 0rem!important; }
 [data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div {
     margin: 0!important;
@@ -45,8 +44,6 @@ st.markdown("""
     box-shadow: none!important;
 }
 .stButton>button:hover { color: white!important; }
-
-.main-container { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -106,7 +103,7 @@ def set_menu(item): st.session_state.menu_ativo = item
 
 with st.sidebar:
     st.markdown("""
-    <div style="background:white; padding:12px 16px; border-radius:18px 18px 0 0; display:flex; align-items:center; gap:8px; margin:0;">
+    <div style="background:white; padding:12px 16px; border-radius:18px 18px 0 0; display:flex; align-items:center; gap:8px;">
         <div style="width:38px; height:38px; border:2.5px solid #2e6b3a; border-radius:10px; display:flex; align-items:center; justify-content:center;">🌿</div>
         <div style="line-height:0.9">
             <div style="font-family:Arial Black; font-size:20px; font-weight:900; color:#1a2a4a;">SUBLIME</div>
@@ -115,16 +112,16 @@ with st.sidebar:
         <div style="margin-left:auto; background:#c5e8c8; color:#1a4a2a; font-size:11px; font-weight:800; padding:3px 8px; border-radius:6px;">V3</div>
     </div>
     <div style="background:#1a3523; padding:10px 14px 2px 14px;">
-        <div style="color:#8ab896; font-size:11px; font-weight:700; letter-spacing:1.2px; margin-left:4px;">MENU</div>
+        <div style="color:#8ab896; font-size:11px; font-weight:700; letter-spacing:1.2px;">MENU</div>
     </div>
     """, unsafe_allow_html=True)
 
-    # CLIENTES ATIVO
+    # CLIENTES SEM FUNDO CLARO - IGUAL AOS OUTROS
     st.markdown("""
-    <div style="background:#1a3523; padding:2px 10px;">
-        <div style="background:#6b9c78; border-radius:8px; padding:8px 12px; display:flex; align-items:center; justify-content:space-between;">
+    <div style="background:#1a3523; padding:8px 10px 0 10px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:4px 2px;">
             <div style="display:flex; align-items:center; gap:6px; color:white; font-weight:800; font-size:13.5px;">👥 CLIENTES</div>
-            <div style="color:white; font-size:10px;">▼</div>
+            <div style="color:#8ab896; font-size:14px;">›</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -176,21 +173,11 @@ with st.sidebar:
         if st.button("• Limpar Cache", key="cfg1"): st.cache_resource.clear()
         if st.button("• Aparência", key="cfg2"): set_menu("Aparência"); st.rerun()
 
-    # ITEM ATIVO COM BOLINHA E SUBLINHADO
-    if st.session_state.menu_ativo=="Cadastrar Cliente":
-        st.markdown("""
-        <style>
-        button[kind="secondary"]:nth-of-type(1) { color: white!important; font-weight: 700!important; text-decoration: underline!important; }
-        </style>
-        <div style="background:#1a3523; margin:-92px 0 0 32px; pointer-events:none; display:flex; align-items:center; gap:4px; color:white; font-size:13.5px; font-weight:700; text-decoration:underline; text-underline-offset:3px;">
-            • Cadastrar Cliente <span style="color:#4ade80; font-size:10px; margin-left:4px;">●</span>
-        </div>
-        <div style="height:70px; background:#1a3523;"></div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown('<div style="height:20px; background:#1a3523;"></div>', unsafe_allow_html=True)
-
     st.markdown("""
+    <div style="background:#1a3523; margin-top:4px; padding:4px 12px 4px 32px; display:flex; align-items:center; gap:4px; color:white; font-size:13.5px; font-weight:700; text-decoration:underline; text-underline-offset:3px;">
+        - Cadastrar Cliente <span style="color:#4ade80; font-size:10px; margin-left:4px;">●</span>
+    </div>
+    <div style="height:30px; background:#1a3523;"></div>
     <div style="background:#1a3523; padding:10px 12px; display:flex; justify-content:space-between; border-radius:0 0 18px 18px;">
         <div style="color:#8ab896; font-size:12px;">v3.1.4</div>
         <div style="color:#c5d9c8; font-size:12px;">☰ Sair</div>
@@ -208,11 +195,8 @@ elif menu=="Cadastrar Cliente":
         try:
             import PyPDF2
             texto="".join([p.extract_text() or "" for p in PyPDF2.PdfReader(arquivo).pages])
-            up=texto.upper()
-            dados={}
             m=re.search(r'(\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2})', texto)
-            if m: dados["cpf_cnpj"]=m.group(1)
-            st.session_state.sintegra_dados=dados
+            if m: st.session_state.sintegra_dados["cpf_cnpj"]=m.group(1)
         except: pass
     c_cep, c_btn = st.columns([4,1])
     with c_cep: cep_input=st.text_input("CEP", value=st.session_state.cep_last, key="cep_f", label_visibility="collapsed", placeholder="78048-000")

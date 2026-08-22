@@ -6,11 +6,10 @@ from datetime import datetime
 import requests
 import re
 
-st.set_page_config(page_title="SUBLIME Agro V3", layout="wide", page_icon="🌱", initial_sidebar_state="expanded")
+st.set_page_config(page_title="SUBLIME Agro V3", layout="wide", page_icon="🌱")
 
 st.markdown("""
 <style>
-/* SIDEBAR SEMPRE VISIVEL - TRAVADA ABERTA */
 [data-testid="stSidebar"] {
     background: #1a3523!important;
     width: 268px!important;
@@ -18,26 +17,17 @@ st.markdown("""
     max-width: 268px!important;
     border-radius: 0 18px 18px 0!important;
     padding: 0!important;
-    display: block!important;
-    visibility: visible!important;
-    transform: none!important;
-    position: fixed!important;
-    left: 0!important;
-    top: 0!important;
-    height: 100vh!important;
 }
 [data-testid="stSidebar"] > div:first-child { padding: 0!important; }
-[data-testid="stSidebarCollapsedControl"], button[data-testid="stSidebarNav"] { display: none!important; }
-header button[kind="header"], [data-testid="collapsedControl"] { display: none!important; }
-
-/* FUNDO DE TUDO VERDE */
-.stApp { background: #d9e8d0!important; }
-[data-testid="stHeader"] { background: #d9e8d0!important; }
-.main.block-container { background: #d9e8d0!important; }
-
+.stApp { background: #eef3ee; }
 [data-testid="stSidebarNav"], header, footer, div[data-testid="InputInstructions"] { display: none!important; }
+
 [data-testid="stSidebar"].stVerticalBlock { gap: 0rem!important; }
-[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div { margin: 0!important; padding: 0!important; gap: 0!important; }
+[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div {
+    margin: 0!important;
+    padding: 0!important;
+    gap: 0!important;
+}
 .stButton { margin: -2px 0!important; padding: 0!important; }
 .stButton>button {
     background: transparent!important;
@@ -54,23 +44,6 @@ header button[kind="header"], [data-testid="collapsedControl"] { display: none!i
     box-shadow: none!important;
 }
 .stButton>button:hover { color: white!important; }
-
-h1, h2, h3 { color: #1a3523!important; font-weight: 800!important; }
-div[data-testid="stTextInput"] input {
-    background: #1e3a26!important;
-    color: white!important;
-    border: 1.5px solid #2e6b3a!important;
-    border-radius: 8px!important;
-}
-div[data-testid="stFileUploader"] {
-    background: #1e3a26!important;
-    border: 1.5px dashed #2e6b3a!important;
-    border-radius: 10px!important;
-}
-div[data-testid="stFileUploader"] * { color: white!important; }
-div[data-testid="stFileUploader"] button { background: #2e6b3a!important; color: white!important; border: none!important; }
-button[kind="primary"] { background: #1a3523!important; color: white!important; border-radius: 8px!important; }
-label { color: #1a3523!important; font-weight: 600!important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -118,6 +91,8 @@ HEADERS_PRODUTOS = ["ID","Nome","Preco","Estoque"]
 ws_vendas = get_or_create_ws("Vendas", HEADERS_VENDAS)
 ws_produtos = get_or_create_ws("Produtos", HEADERS_PRODUTOS)
 ws_clientes = get_or_create_ws("Clientes", HEADERS_CLIENTES)
+df_vendas = carrega_df_seguro(ws_vendas, HEADERS_VENDAS)
+df_produtos = carrega_df_seguro(ws_produtos, HEADERS_PRODUTOS)
 df_clientes = carrega_df_seguro(ws_clientes, HEADERS_CLIENTES)
 
 if "cep_data" not in st.session_state: st.session_state.cep_data = {"endereco":"","cidade":"","estado":"","complemento":""}
@@ -131,43 +106,81 @@ with st.sidebar:
     <div style="background:white; padding:12px 16px; border-radius:18px 18px 0 0; display:flex; align-items:center; gap:8px;">
         <div style="width:38px; height:38px; border:2.5px solid #2e6b3a; border-radius:10px; display:flex; align-items:center; justify-content:center;">🌿</div>
         <div style="line-height:0.9">
-            <div style="font-size:20px; font-weight:900; color:#1a2a4a;">SUBLIME</div>
-            <div style="font-size:17px; font-weight:900; color:#1a2a4a; margin-top:-2px;">Agro</div>
+            <div style="font-family:Arial Black; font-size:20px; font-weight:900; color:#1a2a4a;">SUBLIME</div>
+            <div style="font-family:Arial Black; font-size:17px; font-weight:900; color:#1a2a4a; margin-top:-2px;">Agro</div>
         </div>
         <div style="margin-left:auto; background:#c5e8c8; color:#1a4a2a; font-size:11px; font-weight:800; padding:3px 8px; border-radius:6px;">V3</div>
     </div>
-    <div style="background:#1a3523; padding:10px 14px 2px 14px;"><div style="color:#8ab896; font-size:11px; font-weight:700; letter-spacing:1.2px;">MENU</div></div>
+    <div style="background:#1a3523; padding:10px 14px 2px 14px;">
+        <div style="color:#8ab896; font-size:11px; font-weight:700; letter-spacing:1.2px;">MENU</div>
+    </div>
     """, unsafe_allow_html=True)
-    st.markdown('<div style="background:#1a3523; padding:8px 10px 0 10px;"><div style="display:flex; justify-content:space-between; padding:4px 2px;"><div style="color:white; font-weight:800; font-size:13.5px;">👥 CLIENTES</div><div style="color:#8ab896; font-size:14px;">›</div></div></div>', unsafe_allow_html=True)
+
+    # CLIENTES SEM FUNDO CLARO - IGUAL AOS OUTROS
+    st.markdown("""
+    <div style="background:#1a3523; padding:8px 10px 0 10px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:4px 2px;">
+            <div style="display:flex; align-items:center; gap:6px; color:white; font-weight:800; font-size:13.5px;">👥 CLIENTES</div>
+            <div style="color:#8ab896; font-size:14px;">›</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
     col = st.columns([1,20])[1]
     with col:
         if st.button("• Lista", key="c_lista"): set_menu("Lista"); st.rerun()
         if st.button("• Cadastrar Cliente", key="c_cad"): set_menu("Cadastrar Cliente"); st.rerun()
         if st.button("• Importar Planilha", key="c_imp"): set_menu("Importar Planilha"); st.rerun()
         if st.button("• Mapa Personalizado", key="c_map"): set_menu("Mapa Personalizado"); st.rerun()
-    st.markdown('<div style="background:#1a3523; padding:8px 10px 0 10px;"><div style="display:flex; justify-content:space-between; padding:4px 2px;"><div style="color:white; font-weight:800; font-size:13.5px;">🚚 FORNECEDORES</div><div style="color:#8ab896; font-size:14px;">›</div></div></div>', unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style="background:#1a3523; padding:8px 10px 0 10px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:4px 2px;">
+            <div style="display:flex; align-items:center; gap:6px; color:white; font-weight:800; font-size:13.5px;">🚚 FORNECEDORES</div>
+            <div style="color:#8ab896; font-size:14px;">›</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     col2 = st.columns([1,20])[1]
     with col2:
         if st.button("• Lista", key="f_lista"): set_menu("Fornecedores Lista"); st.rerun()
         if st.button("• Cadastrar Fornecedor", key="f_cad"): set_menu("Cadastrar Fornecedor"); st.rerun()
         if st.button("• Mapa Fornecedores", key="f_map"): set_menu("Mapa Fornecedores"); st.rerun()
-    st.markdown('<div style="background:#1a3523; padding:8px 10px 0 10px;"><div style="display:flex; justify-content:space-between; padding:4px 2px;"><div style="color:white; font-weight:800; font-size:13.5px;">📦 PRODUTOS</div><div style="color:#8ab896; font-size:14px;">›</div></div></div>', unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style="background:#1a3523; padding:8px 10px 0 10px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:4px 2px;">
+            <div style="display:flex; align-items:center; gap:6px; color:white; font-weight:800; font-size:13.5px;">📦 PRODUTOS</div>
+            <div style="color:#8ab896; font-size:14px;">›</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     col3 = st.columns([1,20])[1]
     with col3:
         if st.button("• Lista", key="p_lista"): set_menu("Produtos Lista"); st.rerun()
         if st.button("• Cadastrar Produto", key="p_cad"): set_menu("Cadastrar Produto"); st.rerun()
-    st.markdown('<div style="background:#1a3523; padding:8px 10px 0 10px;"><div style="display:flex; justify-content:space-between; padding:4px 2px;"><div style="color:white; font-weight:800; font-size:13.5px;">⚙️ CONFIGURAÇÕES</div><div style="color:#8ab896; font-size:14px;">›</div></div></div>', unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style="background:#1a3523; padding:8px 10px 0 10px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:4px 2px;">
+            <div style="display:flex; align-items:center; gap:6px; color:white; font-weight:800; font-size:13.5px;">⚙️ CONFIGURAÇÕES</div>
+            <div style="color:#8ab896; font-size:14px;">›</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     col4 = st.columns([1,20])[1]
     with col4:
         if st.button("• Limpar Cache", key="cfg1"): st.cache_resource.clear()
         if st.button("• Aparência", key="cfg2"): set_menu("Aparência"); st.rerun()
+
     st.markdown("""
-    <div style="background:#1a3523; margin-top:4px; padding:4px 12px 4px 32px; display:flex; align-items:center; gap:4px; color:white; font-size:13.5px; font-weight:700; text-decoration:underline;">
+    <div style="background:#1a3523; margin-top:4px; padding:4px 12px 4px 32px; display:flex; align-items:center; gap:4px; color:white; font-size:13.5px; font-weight:700; text-decoration:underline; text-underline-offset:3px;">
         - Cadastrar Cliente <span style="color:#4ade80; font-size:10px; margin-left:4px;">●</span>
     </div>
     <div style="height:30px; background:#1a3523;"></div>
     <div style="background:#1a3523; padding:10px 12px; display:flex; justify-content:space-between; border-radius:0 0 18px 18px;">
-        <div style="color:#8ab896; font-size:12px;">v3.1.4</div><div style="color:#c5d9c8; font-size:12px;">☰ Sair</div>
+        <div style="color:#8ab896; font-size:12px;">v3.1.4</div>
+        <div style="color:#c5d9c8; font-size:12px;">☰ Sair</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -176,7 +189,7 @@ if menu=="Lista":
     st.title("👨‍🌾 Clientes - Lista")
     st.dataframe(df_clientes, use_container_width=True, height=600)
 elif menu=="Cadastrar Cliente":
-    st.markdown("<h1 style='color:#1a3523;'>➕ Cadastrar Cliente</h1>", unsafe_allow_html=True)
+    st.title("➕ Cadastrar Cliente")
     arquivo = st.file_uploader("📄 Upload Sintegra", type=["pdf"], label_visibility="collapsed")
     if arquivo:
         try:

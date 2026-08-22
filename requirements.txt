@@ -2,8 +2,3 @@ streamlit
 pandas
 gspread
 google-auth
-plotly
-requests
-PyPDF2
-folium
-streamlit-folium

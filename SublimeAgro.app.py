@@ -9,8 +9,7 @@ st.set_page_config(page_title="SUBLIME Agro - Clientes", layout="wide", page_ico
 st.markdown("""
 <style>
 .stApp {background:#0f2315}
-h1,h2,h3,p,label {color:white !important}
-div[data-testid="stTextInput"] input, div[data-testid="stSelectbox"] div {background:#1a3a24 !important; color:white !important}
+h1,h2,h3,p,label {color:white!important}
 div[data-testid="stForm"] {background:#1a3a24; border-radius:15px; padding:20px; border:1px solid #2a5a35}
 </style>
 """, unsafe_allow_html=True)
@@ -27,98 +26,85 @@ def conectar():
 
 sh = conectar()
 
-HEADERS = ["ID","Data","Nome/Fazenda","Tipo","CPF/CNPJ","Telefone","Cidade","UF","Endereco","Contato","Status"]
+# Usa a aba Clientes que já existe (com seus headers atuais)
+ws = sh.worksheet("Clientes")
 
-def get_or_create_ws():
-    try:
-        ws = sh.worksheet("Clientes")
-    except:
-        ws = sh.add_worksheet(title="Clientes", rows=1000, cols=len(HEADERS))
-        ws.append_row(HEADERS)
-    return ws
+@st.cache_data(ttl=30)
+def carregar_dados():
+    dados = ws.get_all_records()
+    return pd.DataFrame(dados) if dados else pd.DataFrame()
 
-ws = get_or_create_ws()
+df = carregar_dados()
+
+# Modal de detalhes
+@st.dialog("📋 Detalhes do Cliente", width="large")
+def mostrar_detalhes(cliente):
+    c1,c2 = st.columns(2)
+    for col in cliente.index:
+        val = cliente[col]
+        if pd.isna(val) or str(val).strip() == "":
+            val = "-"
+        # Coloca 2 colunas
+        if list(cliente.index).index(col) % 2 == 0:
+            with c1: st.markdown(f"**{col}:** {val}")
+        else:
+            with c2: st.markdown(f"**{col}:** {val}")
+
+    st.divider()
+    tel = str(cliente.get("Telefone","")).replace(" ","").replace("(","").replace(")","").replace("-","")
+    if tel:
+        st.link_button(f"📱 WhatsApp: {cliente.get('Telefone')}", f"https://wa.me/55{tel}", use_container_width=True)
+
+    if st.button("Fechar", use_container_width=True):
+        st.rerun()
 
 with st.sidebar:
     st.markdown("### 🌱 SUBLIME Agro")
     st.caption("Cadastro v1.0 - Zero")
     st.markdown("**Menu**")
-    menu = st.radio("", ["Clientes"], label_visibility="collapsed")
+    st.radio("", ["Clientes"], label_visibility="collapsed")
 
-# --- TELA CLIENTES COM BUSCA ---
 st.title("👥 Clientes")
 
-# Carrega dados
-@st.cache_data(ttl=30)
-def carregar_dados():
-    dados = ws.get_all_records()
-    return pd.DataFrame(dados) if dados else pd.DataFrame(columns=HEADERS)
+# Busca
+busca = st.text_input("🔍 Buscar cliente", placeholder="Digite nome, CPF/CNPJ, telefone...", label_visibility="collapsed")
 
-df = carregar_dados()
-
-# Barra de busca
-c1,c2,c3 = st.columns([3,1,1])
-with c1:
-    busca = st.text_input("🔍 Buscar cliente", placeholder="Digite nome, fazenda, cidade, telefone...", label_visibility="collapsed")
-with c2:
-    filtro_tipo = st.selectbox("Tipo", ["Todos"] + ["Fazenda de Gado","Confinamento","Fábrica de Ração","Cooperativa","Frigorífico","Produtor Rural","Outro"], label_visibility="collapsed")
-with c3:
-    filtro_status = st.selectbox("Status", ["Todos","Ativo","Prospect","Inativo"], label_visibility="collapsed")
-
-# Aplica filtros
 df_filtrado = df.copy()
-if not df_filtrado.empty:
-    if busca:
-        busca_lower = busca.lower()
-        df_filtrado = df_filtrado[df_filtrado.apply(lambda row: busca_lower in str(row["Nome/Fazenda"]).lower() or busca_lower in str(row["Cidade"]).lower() or busca_lower in str(row["Telefone"]).lower() or busca_lower in str(row["CPF/CNPJ"]).lower(), axis=1)]
-    if filtro_tipo != "Todos":
-        df_filtrado = df_filtrado[df_filtrado["Tipo"] == filtro_tipo]
-    if filtro_status != "Todos":
-        df_filtrado = df_filtrado[df_filtrado["Status"] == filtro_status]
+if not df_filtrado.empty and busca:
+    b = busca.lower()
+    # busca em todas as colunas de texto
+    mask = df_filtrado.astype(str).apply(lambda x: x.str.lower().str.contains(b, na=False)).any(axis=1)
+    df_filtrado = df_filtrado[mask]
 
 # Métricas
-m1,m2,m3 = st.columns(3)
-m1.metric("Total", len(df))
-m2.metric("Filtrados", len(df_filtrado))
-m3.metric("Ativos", len(df[df["Status"]=="Ativo"]) if not df.empty and "Status" in df.columns else 0)
+if not df.empty:
+    m1,m2 = st.columns(2)
+    m1.metric("Total de Clientes", len(df))
+    m2.metric("Filtrados", len(df_filtrado))
+    st.divider()
 
-st.divider()
-
-# Lista
+# TABELA SIMPLIFICADA: só ID, Nome, CPF/CNPJ e Telefone
 if df_filtrado.empty:
-    if df.empty:
-        st.info("📭 Nenhum cliente cadastrado ainda. Clique em 'Novo Cliente' abaixo.")
-    else:
-        st.warning(f"Nenhum resultado para '{busca}'")
+    st.info("Nenhum cliente encontrado" if not df.empty else "Nenhum cliente cadastrado")
 else:
-    st.dataframe(df_filtrado, use_container_width=True, hide_index=True, height=400)
+    # Detecta nome das colunas (seu sheet tem Nome e CPF_CNPJ)
+    col_id = "ID" if "ID" in df_filtrado.columns else df_filtrado.columns[0]
+    col_nome = "Nome" if "Nome" in df_filtrado.columns else "Nome/Fazenda" if "Nome/Fazenda" in df_filtrado.columns else df_filtrado.columns[1]
+    col_doc = "CPF_CNPJ" if "CPF_CNPJ" in df_filtrado.columns else "CPF/CNPJ" if "CPF/CNPJ" in df_filtrado.columns else None
+    col_tel = "Telefone" if "Telefone" in df_filtrado.columns else None
 
-# Formulário de cadastro expansível
-with st.expander("➕ Novo Cliente", expanded=df.empty):
-    with st.form("form_cliente", clear_on_submit=True):
-        c1,c2 = st.columns(2)
-        with c1:
-            nome = st.text_input("Nome / Fazenda *")
-            tipo = st.selectbox("Tipo *", ["Fazenda de Gado","Confinamento","Fábrica de Ração","Cooperativa","Frigorífico","Produtor Rural","Outro"])
-            doc = st.text_input("CPF / CNPJ")
-            telefone = st.text_input("Telefone *", placeholder="(66) 99999-9999")
-        with c2:
-            cidade = st.text_input("Cidade *")
-            uf = st.text_input("UF *", max_chars=2)
-            endereco = st.text_input("Endereço / Rodovia")
-            contato = st.text_input("Contato na Fazenda")
+    cols_mostrar = [c for c in [col_id, col_nome, col_doc, col_tel] if c and c in df_filtrado.columns]
+    df_tabela = df_filtrado[cols_mostrar].copy()
 
-        status = st.selectbox("Status", ["Ativo","Prospect","Inativo"])
-        
-        salvar = st.form_submit_button("💾 Salvar Cliente", type="primary", use_container_width=True)
-        if salvar:
-            if not nome or not telefone or not cidade or not uf:
-                st.error("Preencha Nome, Telefone, Cidade e UF")
-            else:
-                id_gerado = datetime.now().strftime("%y%m%d%H%M%S")
-                data = datetime.now().strftime("%d/%m/%Y %H:%M")
-                linha = [id_gerado, data, nome, tipo, doc, telefone, cidade, uf.upper(), endereco, contato, status]
-                ws.append_row(linha)
-                st.cache_data.clear()
-                st.success(f"✅ {nome} salvo!")
-                st.rerun()
+    # Adiciona coluna de ação
+    st.dataframe(df_tabela, use_container_width=True, hide_index=True, height=450)
+
+    # Seleção para abrir detalhes
+    st.markdown("#### 👆 Clique para ver detalhes")
+    opcoes = [f"{row[col_id]} - {row[col_nome]}" for _, row in df_filtrado.iterrows()]
+    selecionado = st.selectbox("Selecione o cliente", ["Selecione..."] + opcoes, label_visibility="collapsed")
+
+    if selecionado!= "Selecione...":
+        id_selecionado = selecionado.split(" - ")[0]
+        cliente = df_filtrado[df_filtrado[col_id].astype(str) == id_selecionado].iloc[0]
+        mostrar_detalhes(cliente)

@@ -195,8 +195,10 @@ elif menu=="Novo Cliente":
     st.divider()
     st.markdown("#### Endereço - CEP com Lupa")
     c_cep, c_btn = st.columns([4,1])
-    with c_cep: cep_input=st.text_input("CEP *", placeholder="78048-000", value=st.session_state.cep_last, label_visibility="collapsed")
-    with c_btn: buscar=st.button("🔍 Buscar CEP", use_container_width=True)
+    with c_cep: cep_input=st.text_input("CEP *", placeholder="78048-000", value=st.session_state.cep_last, key="cep_input_novo")
+    with c_btn: 
+        st.markdown("<br>", unsafe_allow_html=True)
+        buscar=st.button("🔍 Buscar CEP", use_container_width=True)
     if buscar and cep_input:
         dcep=buscar_cep(cep_input)
         if dcep:
@@ -206,27 +208,32 @@ elif menu=="Novo Cliente":
             st.session_state.cep_data["complemento"]=dcep.get("complemento","")
             st.session_state.cep_last=cep_input
             st.toast(f"Endereço: {dcep.get('logradouro')}", icon="✅")
+            st.rerun()
         else: st.error("CEP não encontrado")
 
-    with st.form("cliente"):
-        c1,c2,c3 = st.columns(3)
-        with c1:
-            nome=st.text_input("Nome Completo / Razão Social *", value=st.session_state.sintegra_dados.get("nome",""))
-            telefone=st.text_input("Telefone", placeholder="(65) 9 9999-9999")
-            cpf=st.text_input("CPF / CNPJ", value=st.session_state.sintegra_dados.get("cpf_cnpj",""))
-        with c2:
-            ie=st.text_input("IE", value=st.session_state.sintegra_dados.get("ie",""))
-            fazenda=st.text_input("Fazenda")
-            cidade=st.text_input("Cidade", value=st.session_state.cep_data.get("cidade",""))
-        with c3:
-            endereco=st.text_input("Endereço", value=st.session_state.cep_data.get("endereco",""))
-            numero=st.text_input("Nº", placeholder="123")
-            complemento=st.text_input("Complemento", value=st.session_state.cep_data.get("complemento",""))
-        estado=st.text_input("UF", value=st.session_state.cep_data.get("estado",""), max_chars=2)
-        if st.form_submit_button("Salvar Cliente 🌿"):
-            if not nome: st.error("Nome obrigatório")
-            else:
-                novo_id=len(df_clientes)+1 if not df_clientes.empty else 1
-                ws_clientes.append_row([novo_id, nome, telefone, cidade, estado.upper(), fazenda, cpf, cep_input, endereco, numero, complemento, ie, datetime.now().strftime("%Y-%m-%d")])
-                st.session_state.sintegra_dados={}
-                st.success(f"Cliente {nome} salvo!"); st.balloons(); st.rerun()
+    # SEM FORM - SÓ SALVA NO BOTÃO
+    st.markdown("#### Dados do Cliente")
+    c1,c2,c3 = st.columns(3)
+    with c1:
+        nome=st.text_input("Nome Completo / Razão Social *", value=st.session_state.sintegra_dados.get("nome",""), key="nome_cli")
+        telefone=st.text_input("Telefone", placeholder="(65) 9 9999-9999", key="tel_cli")
+        cpf=st.text_input("CPF / CNPJ", value=st.session_state.sintegra_dados.get("cpf_cnpj",""), key="cpf_cli")
+    with c2:
+        ie=st.text_input("IE", value=st.session_state.sintegra_dados.get("ie",""), key="ie_cli")
+        fazenda=st.text_input("Fazenda", key="faz_cli")
+        cidade=st.text_input("Cidade", value=st.session_state.cep_data.get("cidade",""), key="cid_cli")
+    with c3:
+        endereco=st.text_input("Endereço", value=st.session_state.cep_data.get("endereco",""), key="end_cli")
+        numero=st.text_input("Nº", placeholder="123", key="num_cli")
+        complemento=st.text_input("Complemento", value=st.session_state.cep_data.get("complemento",""), key="comp_cli")
+    estado=st.text_input("UF", value=st.session_state.cep_data.get("estado",""), max_chars=2, key="uf_cli")
+
+    # BOTÃO FORA DO FORM - ENTER NÃO SALVA MAIS
+    if st.button("Salvar Cliente 🌿", type="primary"):
+        if not nome: st.error("Nome obrigatório")
+        else:
+            novo_id=len(df_clientes)+1 if not df_clientes.empty else 1
+            ws_clientes.append_row([novo_id, nome, telefone, cidade, estado.upper(), fazenda, cpf, cep_input, endereco, numero, complemento, ie, datetime.now().strftime("%Y-%m-%d")])
+            st.session_state.sintegra_dados={}
+            st.success(f"Cliente {nome} salvo!"); st.balloons()
+            st.rerun()

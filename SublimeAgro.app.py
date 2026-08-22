@@ -12,25 +12,25 @@ st.markdown("""
 h1,h2,h3,p,label,span {color:#e0e0e0!important}
 [data-testid="stSidebar"] {background:#1a1a1a!important; border-right:1px solid #333}
 
-/* Tabela estilo Bling da sua print */
+/* DIMINUI ESPAÇAMENTO ENTRE LINHAS */
+div[data-testid="stVerticalBlock"] {gap: 0.2rem!important}
+div[data-testid="stHorizontalBlock"] {gap: 0rem!important; padding:0!important; margin:0!important}
+div[data-testid="column"] {padding:2px 6px!important}
+div[data-testid="stButton"] button {height:26px!important; min-height:26px!important; padding:0px 8px!important; margin:0!important; border-radius:6px!important}
+hr {margin:0!important}
+
+/* Tabela estilo Bling */
 .tabela-header {
     display:flex; background:#1a1a1a; color:#9e9e9e;
-    padding:12px 16px; font-size:13px; font-weight:500;
+    padding:8px 10px; font-size:12px; font-weight:500;
     border-bottom:1px solid #333; border-top:1px solid #333;
 }
-.tabela-row {
-    display:flex; background:#212121; color:#e0e0e0;
-    padding:14px 16px; font-size:14px; align-items:center;
-    border-bottom:1px solid #2e2e2e; transition:0.2s;
-}
-.tabela-row:hover {background:#2a2a2a}
-.col-codigo {width:80px; color:#9e9e9e}
+.col-codigo {width:70px; color:#9e9e9e}
 .col-nome {flex:1.5; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.col-doc {width:180px}
-.col-cidade {width:180px}
-.col-tel {width:160px}
-.col-acao {width:40px; text-align:right}
-.btn-acao {background:none; border:none; color:#9e9e9e; cursor:pointer; font-size:18px}
+.col-doc {width:170px}
+.col-cidade {width:160px}
+.col-tel {width:140px}
+.col-acao {width:35px; text-align:right}
 </style>
 """, unsafe_allow_html=True)
 
@@ -120,18 +120,17 @@ else:
         cidade_val = row.get(col_cidade, "") if col_cidade and col_cidade in row else ""
         tel_val = row.get(col_tel, "") if col_tel and col_tel in row else ""
 
-        # Linha com colunas + botão 3 pontinhos
-        c1,c2,c3,c4,c5,c6 = st.columns([0.8, 3.5, 1.8, 1.8, 1.5, 0.4])
-        with c1: st.markdown(f"<div style='color:#9e9e9e; font-size:14px; padding-top:6px'>{id_val}</div>", unsafe_allow_html=True)
-        with c2: st.markdown(f"<div style='color:white; font-size:14px; padding-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis' title='{nome_val}'>{nome_val}</div>", unsafe_allow_html=True)
-        with c3: st.markdown(f"<div style='color:#e0e0e0; font-size:14px; padding-top:6px'>{doc_val}</div>", unsafe_allow_html=True)
-        with c4: st.markdown(f"<div style='color:#e0e0e0; font-size:14px; padding-top:6px'>{cidade_val}</div>", unsafe_allow_html=True)
-        with c5: st.markdown(f"<div style='color:#e0e0e0; font-size:14px; padding-top:6px'>{tel_val}</div>", unsafe_allow_html=True)
+        # Linha com colunas + botão 3 pontinhos        c1,c2,c3,c4,c5,c6 = st.columns([0.8, 3.5, 1.8, 1.8, 1.5, 0.4])
+        with c1: st.markdown(f"<div style='color:#9e9e9e; font-size:13px; line-height:26px'>{id_val}</div>", unsafe_allow_html=True)
+        with c2: st.markdown(f"<div style='color:white; font-size:13px; line-height:26px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis' title='{nome_val}'>{nome_val}</div>", unsafe_allow_html=True)
+        with c3: st.markdown(f"<div style='color:#e0e0e0; font-size:13px; line-height:26px'>{doc_val}</div>", unsafe_allow_html=True)
+        with c4: st.markdown(f"<div style='color:#e0e0e0; font-size:13px; line-height:26px'>{cidade_val}</div>", unsafe_allow_html=True)
+        with c5: st.markdown(f"<div style='color:#e0e0e0; font-size:13px; line-height:26px'>{tel_val}</div>", unsafe_allow_html=True)
         with c6:
-            if st.button("⋮", key=f"btn_{id_val}_{idx}", help="Ver detalhes"):
+            if st.button("⋮", key=f"btn_{id_val}_{idx}"):
                 st.session_state['cliente_sel'] = row
                 modal_cliente(row)
-        st.markdown("<div style='border-bottom:1px solid #2e2e2e; margin:2px 0'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='border-bottom:1px solid #252525;'></div>", unsafe_allow_html=True)
 
 # Se clicou via session_state
 if 'cliente_sel' in st.session_state and st.session_state['cliente_sel'] is not None:

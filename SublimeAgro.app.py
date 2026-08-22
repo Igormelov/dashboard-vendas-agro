@@ -2,51 +2,36 @@ import streamlit as st
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
-import plotly.express as px
 from datetime import datetime
 import requests
 import re
 
 st.set_page_config(page_title="SUBLIME Agro - Vendas", layout="wide", page_icon="🌿")
 
+# CSS COMPACTO + SIDEBAR IGUAL FOTO
 st.markdown("""
 <style>
-[data-testid="stSidebar"] { background-color: #0f1a12; border-right: 1px solid #2a4a32; }
-[data-testid="stSidebar"] * { font-size: 14px!important; }
+[data-testid="stSidebar"] { background-color: #1a3323!important; border-right: none!important; padding-top: 0!important; }
+[data-testid="stSidebar"] > div:first-child { padding-top: 0!important; }
 .stApp { background-color: #0f1a12; }
-.block-container { padding-top: 1rem!important; padding-bottom: 0rem!important; max-width: 95%!important;}
-h1 { font-size: 1.45rem!important; margin: 0 0 0.4rem 0!important; color: #e8f5e9!important;}
-h2 { font-size: 1.1rem!important; margin: 0.6rem 0 0.3rem 0!important; color: #e8f5e9!important;}
-h3 { font-size: 0.95rem!important; color: #e8f5e9!important;}
-p, span, label, div[data-testid="stMarkdownContainer"] p { font-size: 12px!important; color: #e8f5e9!important; }
-label { margin-bottom: 1px!important; font-size: 11px!important; opacity: 0.9; }
-div[data-testid="stTextInput"] input,
-div[data-testid="stSelectbox"] div[data-baseweb="select"] div,
-div[data-testid="stNumberInput"] input {
-    font-size: 12px!important; height: 30px!important; min-height: 30px!important;
-    padding: 2px 8px!important; background-color: #1a2e1f!important;
-    border: 1px solid #2a4a32!important; color: #e8f5e9!important;
-}
-div[data-testid="stTextInput"], div[data-testid="stSelectbox"], div[data-testid="stNumberInput"] { margin-bottom: -14px!important; }
-.stButton>button {
-    background-color: #4caf50; color: white; border-radius: 8px;
-    width: 100%; font-weight: bold; border: none;
-    font-size: 12px!important; height: 32px!important; padding: 3px!important;
-}
-div[data-testid="stMetric"] { background-color: #1a2e1f; border: 1px solid #2a4a32; border-radius: 10px; padding: 6px 10px!important;}
-div[data-testid="stMetricLabel"] { font-size: 10px!important; }
-div[data-testid="stMetricValue"] { font-size: 15px!important; }
-[data-testid="stFileUploader"] section { padding: 6px!important; min-height: 60px!important;}
-[data-testid="stFileUploader"] * { font-size: 11px!important; }
-hr { margin: 0.4rem 0!important; }
+.block-container { padding-top: 1rem!important; max-width: 95%!important;}
+h1 { font-size: 1.4rem!important; color: #e8f5e9!important; margin-bottom: 0.5rem!important;}
+p, label, span { font-size: 12px!important; color: #e8f5e9!important; }
+div[data-testid="stTextInput"] input { height: 30px!important; font-size: 12px!important; background: #1a2e1f!important; border: 1px solid #2a4a32!important; color: white!important;}
 div[data-testid="InputInstructions"] { display: none!important; }
 [data-testid="stForm"] small { display: none!important; }
+.stButton>button { background: #2d5a35; color: white; border-radius: 8px; height: 32px!important; font-size: 12px!important; border: 1px solid #3a6b42; width: 100%; text-align: left; padding-left: 12px!important;}
+.stButton>button:hover { background: #3a6b42; color: white; border-color: #4caf50;}
+.stButton>button[kind="primary"] { background: #4caf50!important; text-align: center!important; font-weight: bold; justify-content: center;}
+
+/* ESTILO DO SIDEBAR DA FOTO */
+.sidebar-header { background: white; padding: 14px 16px; margin: -10px -16px 0 -16px; display: flex; align-items: center; gap: 10px; }
+.menu-title { color: #7fb88a; font-size: 11px!important; font-weight: bold; letter-spacing: 1px; margin: 18px 0 6px 14px;}
+.menu-active { background: #5a8a65!important; border-radius: 8px; margin: 0 8px; }
+.menu-header { padding: 10px 12px; color: white; font-weight: 700; font-size: 13px!important; display: flex; justify-content: space-between; align-items: center;}
+.footer-bar { position: fixed; bottom: 0; left: 0; width: 100%; max-width: 21rem; background: #132a1a; padding: 12px 16px; display: flex; justify-content: space-between; color: #8fb996; font-size: 12px!important; border-top: 1px solid #1e3d27;}
 </style>
 """, unsafe_allow_html=True)
-
-def normaliza(df):
-    df.columns = [c.strip() for c in df.columns]
-    return df
 
 @st.cache_resource
 def conecta_gsheets():
@@ -64,46 +49,29 @@ def buscar_cep(cep):
     try:
         r = requests.get(f"https://viacep.com.br/ws/{cep}/json/", timeout=5)
         if r.status_code==200:
-            data=r.json()
-            if "erro" not in data: return data
+            d=r.json()
+            if "erro" not in d: return d
     except: return None
     return None
 
 sh = conecta_gsheets()
 
-# CORREÇÃO DO ERRO DA SUA PRINT - NÃO TENTA CRIAR ABA DUPLICADA
 def get_or_create_ws(nome, headers):
-    try:
-        # Tenta listar todas as abas primeiro
-        for ws in sh.worksheets():
-            if ws.title == nome:
-                return ws
-        # Se não achou, cria
-        ws = sh.add_worksheet(title=nome, rows=1000, cols=len(headers))
-        ws.append_row(headers)
-        return ws
-    except Exception as e:
-        # Se der qualquer erro de API, tenta pegar de novo
-        try:
-            return sh.worksheet(nome)
-        except:
-            st.error(f"Erro ao acessar aba {nome}: {e}")
-            st.stop()
+    for ws in sh.worksheets():
+        if ws.title == nome: return ws
+    ws = sh.add_worksheet(title=nome, rows=1000, cols=len(headers))
+    ws.append_row(headers)
+    return ws
 
 def carrega_df_seguro(ws, headers):
     try:
         vals = ws.get_all_values()
-        if len(vals) <= 1:
-            return pd.DataFrame(columns=headers)
-        # Usa primeira linha como header, mas normaliza
+        if len(vals) <= 1: return pd.DataFrame(columns=headers)
         df = pd.DataFrame(vals[1:], columns=[c.strip() for c in vals[0]])
-        # Se faltam colunas, adiciona vazias
         for h in headers:
-            if h not in df.columns:
-                df[h] = ""
+            if h not in df.columns: df[h] = ""
         return df
-    except:
-        return pd.DataFrame(columns=headers)
+    except: return pd.DataFrame(columns=headers)
 
 HEADERS_CLIENTES = ["ID","Nome","Telefone","Cidade","Estado","Fazenda","CPF_CNPJ","CEP","Endereco","Numero","Complemento","IE","Data_Cadastro"]
 HEADERS_VENDAS = ["ID","Data","Cliente","Produto","Quantidade","Valor_Unit","Valor_Total","Cidade","Estado","Vendedor","Status"]
@@ -120,111 +88,127 @@ df_clientes = carrega_df_seguro(ws_clientes, HEADERS_CLIENTES)
 if "cep_data" not in st.session_state: st.session_state.cep_data = {"endereco":"","cidade":"","estado":"","complemento":""}
 if "cep_last" not in st.session_state: st.session_state.cep_last = ""
 if "sintegra_dados" not in st.session_state: st.session_state.sintegra_dados = {}
+if "menu_ativo" not in st.session_state: st.session_state.menu_ativo = "Cadastrar Cliente"
 
+def set_menu(item): st.session_state.menu_ativo = item
+
+# SIDEBAR IGUAL FOTO
 with st.sidebar:
-    st.markdown("## 🌿 SUBLIME AGRO")
-    menu = st.radio("Menu", ["Dashboard","Vendas","Cadastrar Venda","Clientes","Novo Cliente"], label_visibility="collapsed", index=4)
+    st.markdown("""
+    <div class="sidebar-header">
+        <div style="border:2px solid #2e7d32; border-radius:12px; padding:5px; width:38px; height:38px; display:flex; align-items:center; justify-content:center; font-size:22px;">🌱</div>
+        <div style="line-height:1"><b style="color:#1b3a2a; font-size:19px;">SUBLIME</b><br><b style="color:#1b3a2a; font-size:15px;">Agro</b></div>
+        <div style="background:#e8f5e9; color:#2e7d32; font-size:10px; font-weight:bold; padding:3px 8px; border-radius:12px; margin-left:auto; border:1px solid #a5d6a7;">V3</div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown('<div class="menu-title">MENU</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="menu-active"><div class="menu-header">👥 CLIENTES <span>▼</span></div></div>', unsafe_allow_html=True)
+    col = st.columns([1, 10])[1]
+    with col:
+        if st.button("• Lista", key="c_lista", use_container_width=True): set_menu("Lista")
+        # Ativo com bolinha verde igual foto
+        label_cad = "• Cadastrar Cliente ●" if st.session_state.menu_ativo=="Cadastrar Cliente" else "• Cadastrar Cliente"
+        if st.button(label_cad, key="c_cad", use_container_width=True): set_menu("Cadastrar Cliente")
+        if st.button("• Importar Planilha", key="c_imp", use_container_width=True): set_menu("Importar Planilha")
+        if st.button("• Mapa Personalizado", key="c_mapa", use_container_width=True): set_menu("Mapa Personalizado")
+
+    st.markdown('<div style="margin-top:8px"><div class="menu-header">🚚 FORNECEDORES <span>›</span></div></div>', unsafe_allow_html=True)
+    col2 = st.columns([1,10])[1]
+    with col2:
+        if st.button("• Lista", key="f_lista", use_container_width=True): set_menu("Fornecedores Lista")
+        if st.button("• Cadastrar Fornecedor", key="f_cad", use_container_width=True): set_menu("Cadastrar Fornecedor")
+        if st.button("• Mapa Fornecedores", key="f_mapa", use_container_width=True): set_menu("Mapa Fornecedores")
+
+    st.markdown('<div style="margin-top:8px"><div class="menu-header">📦 PRODUTOS <span>›</span></div></div>', unsafe_allow_html=True)
+    col3 = st.columns([1,10])[1]
+    with col3:
+        if st.button("• Lista", key="p_lista", use_container_width=True): set_menu("Produtos Lista")
+        if st.button("• Cadastrar Produto", key="p_cad", use_container_width=True): set_menu("Cadastrar Produto")
+
+    st.markdown('<div style="margin-top:8px"><div class="menu-header">⚙️ CONFIGURAÇÕES <span>›</span></div></div>', unsafe_allow_html=True)
+    col4 = st.columns([1,10])[1]
+    with col4:
+        if st.button("• Limpar Cache", key="cfg1", use_container_width=True): st.cache_resource.clear(); st.toast("Cache limpo!")
+        if st.button("• Aparência", key="cfg2", use_container_width=True): set_menu("Aparência")
+
+    st.markdown('<div style="height:80px"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="footer-bar"><span>v3.1.4</span><span>⎆ Sair</span></div>', unsafe_allow_html=True)
+
+menu = st.session_state.menu_ativo
+
+# CONTEÚDO
+if menu=="Lista":
+    st.title("👨‍🌾 Clientes - Lista")
+    st.dataframe(df_clientes, use_container_width=True, height=600)
+
+elif menu=="Cadastrar Cliente":
+    st.title("➕ Cadastrar Cliente")
+
+    st.markdown("**📄 Upload Sintegra (opcional)**")
+    arquivo = st.file_uploader("Arraste o PDF", type=["pdf"], label_visibility="collapsed")
+    if arquivo:
+        try:
+            import PyPDF2
+            texto="".join([p.extract_text() or "" for p in PyPDF2.PdfReader(arquivo).pages])
+            up=texto.upper()
+            dados={}
+            m=re.search(r'(\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2})', texto)
+            if m: dados["cpf_cnpj"]=m.group(1)
+            m2=re.search(r'INSCRI[ÇC][AÃ]O ESTADUAL[^0-9]*([0-9\.\-]{8,15})', up)
+            if m2: dados["ie"]=m2.group(1)
+            m3=re.search(r'RAZ[AÃ]O SOCIAL[:\s\-]*([A-Z0-9\s\.\-\/&]+?)(?:\s{2,}|NOME FANTASIA|CNPJ)', up)
+            if m3: dados["nome"]=m3.group(1).strip().title()[:80]
+            st.session_state.sintegra_dados=dados
+            if dados: st.success(f"✅ Encontrado: {dados}")
+        except Exception as e: st.error(str(e))
+
     st.divider()
-    st.markdown("""<div style="display:flex;align-items:center;gap:12px;background:#1a2e1f;border:1px solid #2a4a32;padding:10px;border-radius:12px;">
-    <div style="background:#4caf50;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;color:white;">IM</div>
-    <div><b style="font-size:13px;">Igor Melo</b><br><span style="color:#4caf50;font-size:11px;">Admin • Online 🟢</span></div></div>""", unsafe_allow_html=True)
-
-if menu=="Dashboard":
-    st.title("Dashboard de Vendas 🌿")
-    st.dataframe(df_vendas, use_container_width=True, height=500)
-
-elif menu=="Vendas":
-    st.title("Todas as Vendas")
-    st.dataframe(df_vendas, use_container_width=True, height=500)
-
-elif menu=="Cadastrar Venda":
-    st.title("Nova Venda 🚀")
-    lista = df_clientes["Nome"].tolist() if not df_clientes.empty and "Nome" in df_clientes.columns else []
-    sel = st.selectbox("Cliente *", ["Selecione..."]+lista+["Cliente Avulso"])
-    cidade_auto=estado_auto=""
-    if sel not in ["Selecione...","Cliente Avulso",""] and not df_clientes.empty and "Nome" in df_clientes.columns:
-        d=df_clientes[df_clientes["Nome"]==sel]
-        if not d.empty: cidade_auto=d.iloc[0].get("Cidade",""); estado_auto=d.iloc[0].get("Estado","")
-    with st.form("venda"):
-        c1,c2=st.columns(2)
-        with c1:
-            produto=st.selectbox("Produto", df_produtos["Nome"].tolist() if not df_produtos.empty and "Nome" in df_produtos.columns else ["Soja Premium"])
-            qtd=st.number_input("Qtd",1)
-            cidade=st.text_input("Cidade", value=cidade_auto)
-            estado=st.text_input("UF", value=estado_auto, max_chars=2)
-        with c2:
-            vendedor=st.selectbox("Vendedor", ["Igor Melo","Ana Costa","Bruno Silva","Carlos Lima"])
-            status=st.selectbox("Status", ["Pago","Pendente"])
-        if st.form_submit_button("Salvar Venda 🌿"):
-            ws_vendas.append_row([len(df_vendas)+1, datetime.now().strftime("%Y-%m-%d"), sel, produto, qtd, 0,0, cidade, estado.upper(), vendedor, status])
-            st.success("Venda salva!"); st.rerun()
-
-elif menu=="Clientes":
-    st.title("👨‍🌾 Clientes Cadastrados")
-    st.dataframe(df_clientes, use_container_width=True, height=500)
-
-elif menu=="Novo Cliente":
-    st.markdown("### ➕ Novo Cliente")
-    st.markdown("#### 📄 Upload Sintegra")
-    st.caption("Arraste o PDF do Sintegra aqui (opcional)")
-    arquivo = st.file_uploader("Upload Sintegra", type=["pdf"], label_visibility="collapsed")
-    if arquivo is not None:
-        with st.spinner("Lendo Sintegra..."):
-            try:
-                import PyPDF2
-                texto=""
-                reader=PyPDF2.PdfReader(arquivo)
-                for p in reader.pages: texto+=p.extract_text() or ""
-                texto_upper=texto.upper()
-                dados={}
-                m_cnpj=re.search(r'(\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2})', texto)
-                if m_cnpj: dados["cpf_cnpj"]=m_cnpj.group(1)
-                m_ie=re.search(r'INSCRI[ÇC][AÃ]O ESTADUAL[^0-9]*([0-9\.\-]{8,15})', texto_upper)
-                if m_ie: dados["ie"]=m_ie.group(1).strip()
-                m_r=re.search(r'RAZ[AÃ]O SOCIAL[:\s\-]*([A-Z0-9\s\.\-\/&]+?)(?:\s{2,}|NOME FANTASIA|CNPJ)', texto_upper)
-                if m_r and len(m_r.group(1).strip())>5: dados["nome"]=m_r.group(1).strip().title()[:80]
-                st.session_state.sintegra_dados=dados
-                if dados: st.success(f"✅ Encontrado: {dados}")
-            except Exception as e: st.error(f"Erro: {e}")
-
-    st.divider()
-    st.markdown("#### Endereço - CEP com Lupa")
     c_cep, c_btn = st.columns([4,1])
-    with c_cep: cep_input=st.text_input("CEP *", placeholder="78250-000", value=st.session_state.cep_last, key="cep_input_novo", label_visibility="collapsed")
+    with c_cep: cep_input=st.text_input("CEP *", placeholder="78048-000", value=st.session_state.cep_last, label_visibility="collapsed", key="cep_final")
     with c_btn: buscar=st.button("🔍 Buscar CEP", use_container_width=True)
     if buscar and cep_input:
-        dcep=buscar_cep(cep_input)
-        if dcep:
-            st.session_state.cep_data["endereco"]=dcep.get("logradouro","")
-            st.session_state.cep_data["cidade"]=dcep.get("localidade","")
-            st.session_state.cep_data["estado"]=dcep.get("uf","")
-            st.session_state.cep_data["complemento"]=dcep.get("complemento","")
+        d=buscar_cep(cep_input)
+        if d:
+            st.session_state.cep_data={"endereco":d.get("logradouro",""), "cidade":d.get("localidade",""), "estado":d.get("uf",""), "complemento":d.get("complemento","")}
             st.session_state.cep_last=cep_input
-            st.toast(f"Endereço: {dcep.get('logradouro')}", icon="✅")
+            st.toast(f"✅ {d.get('logradouro')}, {d.get('localidade')}")
             st.rerun()
         else: st.error("CEP não encontrado")
 
-    # SEM FORM - ENTER NÃO SALVA MAIS
-    c1,c2,c3 = st.columns(3)
+    c1,c2,c3=st.columns(3)
     with c1:
-        nome=st.text_input("Nome Completo / Razão Social *", value=st.session_state.sintegra_dados.get("nome",""), key="nome_cli")
-        telefone=st.text_input("Telefone", placeholder="(65) 9 9999-9999", key="tel_cli")
-        cpf=st.text_input("CPF / CNPJ", value=st.session_state.sintegra_dados.get("cpf_cnpj",""), key="cpf_cli")
+        nome=st.text_input("Nome / Razão Social *", value=st.session_state.sintegra_dados.get("nome",""), key="nome_f")
+        telefone=st.text_input("Telefone", key="tel_f")
+        cpf=st.text_input("CPF / CNPJ", value=st.session_state.sintegra_dados.get("cpf_cnpj",""), key="cpf_f")
     with c2:
-        ie=st.text_input("IE", value=st.session_state.sintegra_dados.get("ie",""), key="ie_cli")
-        fazenda=st.text_input("Fazenda", key="faz_cli")
-        cidade=st.text_input("Cidade", value=st.session_state.cep_data.get("cidade",""), key="cid_cli")
+        ie=st.text_input("IE", value=st.session_state.sintegra_dados.get("ie",""), key="ie_f")
+        fazenda=st.text_input("Fazenda", key="faz_f")
+        cidade=st.text_input("Cidade", value=st.session_state.cep_data.get("cidade",""), key="cid_f")
     with c3:
-        endereco=st.text_input("Endereço", value=st.session_state.cep_data.get("endereco",""), key="end_cli")
-        numero=st.text_input("Nº", placeholder="123", key="num_cli")
-        complemento=st.text_input("Complemento", value=st.session_state.cep_data.get("complemento",""), key="comp_cli")
-    estado=st.text_input("UF", value=st.session_state.cep_data.get("estado",""), max_chars=2, key="uf_cli")
+        endereco=st.text_input("Endereço", value=st.session_state.cep_data.get("endereco",""), key="end_f")
+        numero=st.text_input("Nº", key="num_f")
+        complemento=st.text_input("Complemento", value=st.session_state.cep_data.get("complemento",""), key="comp_f")
+    estado=st.text_input("UF", value=st.session_state.cep_data.get("estado",""), max_chars=2, key="uf_f")
 
-    if st.button("Salvar Cliente 🌿", type="primary"):
+    # SÓ SALVA NO CLIQUE - ENTER NÃO SALVA
+    if st.button("Salvar Cliente 🌿", type="primary", use_container_width=True):
         if not nome: st.error("Nome obrigatório")
         else:
             novo_id=len(df_clientes)+1 if not df_clientes.empty else 1
             ws_clientes.append_row([novo_id, nome, telefone, cidade, estado.upper(), fazenda, cpf, cep_input, endereco, numero, complemento, ie, datetime.now().strftime("%Y-%m-%d")])
             st.session_state.sintegra_dados={}
-            st.success(f"Cliente {nome} salvo!"); st.balloons()
+            st.success(f"Cliente {nome} salvo com sucesso!"); st.balloons()
             st.rerun()
+
+elif menu=="Produtos Lista":
+    st.title("📦 Produtos")
+    st.dataframe(df_produtos, use_container_width=True)
+
+elif menu=="Fornecedores Lista":
+    st.title("🚚 Fornecedores")
+    st.info("Lista de fornecedores - em desenvolvimento")
+
+else:
+    st.title(menu)
+    st.info(f"Módulo {menu} - já está no menu igual da foto, pronto para implementar!")

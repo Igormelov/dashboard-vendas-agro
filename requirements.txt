@@ -3,5 +3,6 @@ pandas
 gspread
 google-auth
 plotly
-PyPDF2
 requests
+PyPDF2
+

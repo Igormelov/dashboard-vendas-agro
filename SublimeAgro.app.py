@@ -10,43 +10,53 @@ st.set_page_config(page_title="SUBLIME Agro V3", layout="wide", page_icon="🌱"
 
 st.markdown("""
 <style>
+/* SIDEBAR TAMANHO FIXO SEM ROLAGEM */
 [data-testid="stSidebar"] {
     background: #1a3523!important;
     width: 268px!important;
     min-width: 268px!important;
     max-width: 268px!important;
+    height: 100vh!important;
+    overflow-y: hidden!important;
     border-radius: 0 18px 18px 0!important;
     padding: 0!important;
 }
-[data-testid="stSidebar"] > div:first-child { padding: 0!important; }
-.stApp { background: #eef3ee; }
-[data-testid="stSidebarNav"], header, footer, div[data-testid="InputInstructions"] { display: none!important; }
-
-/* DIMINUI ESPAÇAMENTO ENTRE OPÇÕES - BEM ENQUADRADO */
-[data-testid="stSidebar"].stVerticalBlock { gap: 0rem!important; }
-[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div {
-    margin: 0!important;
+[data-testid="stSidebar"] > div:first-child {
     padding: 0!important;
-    gap: 0!important;
+    height: 100vh!important;
+    overflow: hidden!important;
+    display: flex;
+    flex-direction: column;
 }
-.stButton { margin: -2px 0!important; padding: 0!important; }
+[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+    gap: 0!important;
+    overflow: hidden!important;
+    flex: 1;
+}
+.stApp { background: #eef3ee; }
+header, footer, [data-testid="stSidebarNav"] { display: none!important; }
+div[data-testid="InputInstructions"] { display: none!important; }
+
+/* ESPAÇAMENTO ULTRA COMPACTO PARA CABER SEM ROLAR */
+.stButton { margin: 0!important; padding: 0!important; }
 .stButton>button {
     background: transparent!important;
     border: none!important;
     color: #a8c5b0!important;
-    font-size: 13.5px!important;
+    font-size: 13px!important;
     text-align: left!important;
-    padding: 2px 0 2px 32px!important;
-    height: 24px!important;
-    min-height: 24px!important;
-    line-height: 1.1!important;
+    padding: 1px 0 1px 32px!important;
+    height: 21px!important;
+    min-height: 21px!important;
+    line-height: 1!important;
     margin: 0!important;
     font-weight: 400!important;
     box-shadow: none!important;
 }
-.stButton>button:hover { color: white!important; }
+.stButton>button:hover { color: white!important; background: transparent!important; }
 
-.main-container { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+/* SCROLLBAR SOME */
+::-webkit-scrollbar { width: 0px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -106,25 +116,18 @@ def set_menu(item): st.session_state.menu_ativo = item
 
 with st.sidebar:
     st.markdown("""
-    <div style="background:white; padding:12px 16px; border-radius:18px 18px 0 0; display:flex; align-items:center; gap:8px; margin:0;">
-        <div style="width:38px; height:38px; border:2.5px solid #2e6b3a; border-radius:10px; display:flex; align-items:center; justify-content:center;">🌿</div>
-        <div style="line-height:0.9">
-            <div style="font-family:Arial Black; font-size:20px; font-weight:900; color:#1a2a4a;">SUBLIME</div>
-            <div style="font-family:Arial Black; font-size:17px; font-weight:900; color:#1a2a4a; margin-top:-2px;">Agro</div>
-        </div>
-        <div style="margin-left:auto; background:#c5e8c8; color:#1a4a2a; font-size:11px; font-weight:800; padding:3px 8px; border-radius:6px;">V3</div>
+    <div style="background:white; padding:10px 14px; border-radius:18px 18px 0 0; display:flex; align-items:center; gap:8px;">
+        <div style="width:36px; height:36px; border:2px solid #2e6b3a; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:20px;">🌿</div>
+        <div style="line-height:0.9"><div style="font-weight:900; font-size:18px; color:#1a2a4a;">SUBLIME</div><div style="font-weight:900; font-size:15px; color:#1a2a4a; margin-top:-2px;">Agro</div></div>
+        <div style="margin-left:auto; background:#c5e8c8; color:#1a4a2a; font-size:10px; font-weight:800; padding:2px 7px; border-radius:6px;">V3</div>
     </div>
-    <div style="background:#1a3523; padding:10px 14px 2px 14px;">
-        <div style="color:#8ab896; font-size:11px; font-weight:700; letter-spacing:1.2px; margin-left:4px;">MENU</div>
-    </div>
+    <div style="background:#1a3523; padding:6px 14px 2px 14px;"><div style="color:#8ab896; font-size:10px; font-weight:700; letter-spacing:1px;">MENU</div></div>
     """, unsafe_allow_html=True)
 
-    # CLIENTES ATIVO
     st.markdown("""
-    <div style="background:#1a3523; padding:2px 10px;">
-        <div style="background:#6b9c78; border-radius:8px; padding:8px 12px; display:flex; align-items:center; justify-content:space-between;">
-            <div style="display:flex; align-items:center; gap:6px; color:white; font-weight:800; font-size:13.5px;">👥 CLIENTES</div>
-            <div style="color:white; font-size:10px;">▼</div>
+    <div style="background:#1a3523; padding:1px 10px;">
+        <div style="background:#6b9c78; border-radius:8px; padding:7px 12px; display:flex; justify-content:space-between; align-items:center;">
+            <div style="color:white; font-weight:800; font-size:12.5px;">👥 CLIENTES</div><div style="color:white; font-size:9px;">▼</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -136,64 +139,35 @@ with st.sidebar:
         if st.button("• Importar Planilha", key="c_imp"): set_menu("Importar Planilha"); st.rerun()
         if st.button("• Mapa Personalizado", key="c_map"): set_menu("Mapa Personalizado"); st.rerun()
 
-    st.markdown("""
-    <div style="background:#1a3523; padding:8px 10px 0 10px;">
-        <div style="display:flex; align-items:center; justify-content:space-between; padding:4px 2px;">
-            <div style="display:flex; align-items:center; gap:6px; color:white; font-weight:800; font-size:13.5px;">🚚 FORNECEDORES</div>
-            <div style="color:#8ab896; font-size:14px;">›</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div style="background:#1a3523; padding:5px 10px 0 10px;"><div style="display:flex; justify-content:space-between; padding:3px 2px;"><div style="color:white; font-weight:800; font-size:12.5px;">🚚 FORNECEDORES</div><div style="color:#8ab896; font-size:12px;">›</div></div></div>', unsafe_allow_html=True)
     col2 = st.columns([1,20])[1]
     with col2:
         if st.button("• Lista", key="f_lista"): set_menu("Fornecedores Lista"); st.rerun()
         if st.button("• Cadastrar Fornecedor", key="f_cad"): set_menu("Cadastrar Fornecedor"); st.rerun()
         if st.button("• Mapa Fornecedores", key="f_map"): set_menu("Mapa Fornecedores"); st.rerun()
 
-    st.markdown("""
-    <div style="background:#1a3523; padding:8px 10px 0 10px;">
-        <div style="display:flex; align-items:center; justify-content:space-between; padding:4px 2px;">
-            <div style="display:flex; align-items:center; gap:6px; color:white; font-weight:800; font-size:13.5px;">📦 PRODUTOS</div>
-            <div style="color:#8ab896; font-size:14px;">›</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div style="background:#1a3523; padding:5px 10px 0 10px;"><div style="display:flex; justify-content:space-between; padding:3px 2px;"><div style="color:white; font-weight:800; font-size:12.5px;">📦 PRODUTOS</div><div style="color:#8ab896; font-size:12px;">›</div></div></div>', unsafe_allow_html=True)
     col3 = st.columns([1,20])[1]
     with col3:
         if st.button("• Lista", key="p_lista"): set_menu("Produtos Lista"); st.rerun()
         if st.button("• Cadastrar Produto", key="p_cad"): set_menu("Cadastrar Produto"); st.rerun()
 
-    st.markdown("""
-    <div style="background:#1a3523; padding:8px 10px 0 10px;">
-        <div style="display:flex; align-items:center; justify-content:space-between; padding:4px 2px;">
-            <div style="display:flex; align-items:center; gap:6px; color:white; font-weight:800; font-size:13.5px;">⚙️ CONFIGURAÇÕES</div>
-            <div style="color:#8ab896; font-size:14px;">›</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div style="background:#1a3523; padding:5px 10px 0 10px;"><div style="display:flex; justify-content:space-between; padding:3px 2px;"><div style="color:white; font-weight:800; font-size:12.5px;">⚙️ CONFIGURAÇÕES</div><div style="color:#8ab896; font-size:12px;">›</div></div></div>', unsafe_allow_html=True)
     col4 = st.columns([1,20])[1]
     with col4:
         if st.button("• Limpar Cache", key="cfg1"): st.cache_resource.clear()
         if st.button("• Aparência", key="cfg2"): set_menu("Aparência"); st.rerun()
 
-    # ITEM ATIVO COM BOLINHA E SUBLINHADO
-    if st.session_state.menu_ativo=="Cadastrar Cliente":
-        st.markdown("""
-        <style>
-        button[kind="secondary"]:nth-of-type(1) { color: white!important; font-weight: 700!important; text-decoration: underline!important; }
-        </style>
-        <div style="background:#1a3523; margin:-92px 0 0 32px; pointer-events:none; display:flex; align-items:center; gap:4px; color:white; font-size:13.5px; font-weight:700; text-decoration:underline; text-underline-offset:3px;">
-            • Cadastrar Cliente <span style="color:#4ade80; font-size:10px; margin-left:4px;">●</span>
-        </div>
-        <div style="height:70px; background:#1a3523;"></div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown('<div style="height:20px; background:#1a3523;"></div>', unsafe_allow_html=True)
-
-    st.markdown("""
-    <div style="background:#1a3523; padding:10px 12px; display:flex; justify-content:space-between; border-radius:0 0 18px 18px;">
-        <div style="color:#8ab896; font-size:12px;">v3.1.4</div>
-        <div style="color:#c5d9c8; font-size:12px;">☰ Sair</div>
+    # INDICADOR ATIVO IGUAL FOTO
+    st.markdown(f"""
+    <div style="background:#1a3523; flex-grow:1;"></div>
+    <div style="background:#1a3523; padding:2px 12px 8px 32px; font-size:12px; color:{"white" if st.session_state.menu_ativo=="Cadastrar Cliente" else "#a8c5b0"};
+    font-weight:{"700" if st.session_state.menu_ativo=="Cadastrar Cliente" else "400"};
+    text-decoration:{"underline" if st.session_state.menu_ativo=="Cadastrar Cliente" else "none"};">
+        • Cadastrar Cliente <span style="color:#4ade80;">●</span>
+    </div>
+    <div style="background:#1a3523; padding:6px 12px; display:flex; justify-content:space-between; border-radius:0 0 18px 18px; margin-top:auto;">
+        <div style="color:#8ab896; font-size:11px;">v3.1.4</div><div style="color:#c5d9c8; font-size:11px;">☰ Sair</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -208,11 +182,8 @@ elif menu=="Cadastrar Cliente":
         try:
             import PyPDF2
             texto="".join([p.extract_text() or "" for p in PyPDF2.PdfReader(arquivo).pages])
-            up=texto.upper()
-            dados={}
             m=re.search(r'(\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2})', texto)
-            if m: dados["cpf_cnpj"]=m.group(1)
-            st.session_state.sintegra_dados=dados
+            if m: st.session_state.sintegra_dados["cpf_cnpj"]=m.group(1)
         except: pass
     c_cep, c_btn = st.columns([4,1])
     with c_cep: cep_input=st.text_input("CEP", value=st.session_state.cep_last, key="cep_f", label_visibility="collapsed", placeholder="78048-000")

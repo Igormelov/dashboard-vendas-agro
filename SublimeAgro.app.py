@@ -8,28 +8,45 @@ import re
 
 st.set_page_config(page_title="SUBLIME Agro - Vendas", layout="wide", page_icon="🌿")
 
-# CSS COMPACTO + SIDEBAR IGUAL FOTO
 st.markdown("""
 <style>
-[data-testid="stSidebar"] { background-color: #1a3323!important; border-right: none!important; padding-top: 0!important; }
-[data-testid="stSidebar"] > div:first-child { padding-top: 0!important; }
+/* ESTREITA 2CM PARA ESQUERDA E AUMENTA FONTE 10% */
+[data-testid="stSidebar"] {
+    background-color: #1a3323!important;
+    width: 250px!important;
+    min-width: 250px!important;
+    max-width: 250px!important;
+    margin-left: -10px!important;
+}
+[data-testid="stSidebar"] > div:first-child { padding-top: 0!important; padding-left: 8px!important; padding-right: 8px!important; }
 .stApp { background-color: #0f1a12; }
 .block-container { padding-top: 1rem!important; max-width: 95%!important;}
-h1 { font-size: 1.4rem!important; color: #e8f5e9!important; margin-bottom: 0.5rem!important;}
-p, label, span { font-size: 12px!important; color: #e8f5e9!important; }
-div[data-testid="stTextInput"] input { height: 30px!important; font-size: 12px!important; background: #1a2e1f!important; border: 1px solid #2a4a32!important; color: white!important;}
-div[data-testid="InputInstructions"] { display: none!important; }
-[data-testid="stForm"] small { display: none!important; }
-.stButton>button { background: #2d5a35; color: white; border-radius: 8px; height: 32px!important; font-size: 12px!important; border: 1px solid #3a6b42; width: 100%; text-align: left; padding-left: 12px!important;}
-.stButton>button:hover { background: #3a6b42; color: white; border-color: #4caf50;}
-.stButton>button[kind="primary"] { background: #4caf50!important; text-align: center!important; font-weight: bold; justify-content: center;}
 
-/* ESTILO DO SIDEBAR DA FOTO */
-.sidebar-header { background: white; padding: 14px 16px; margin: -10px -16px 0 -16px; display: flex; align-items: center; gap: 10px; }
-.menu-title { color: #7fb88a; font-size: 11px!important; font-weight: bold; letter-spacing: 1px; margin: 18px 0 6px 14px;}
-.menu-active { background: #5a8a65!important; border-radius: 8px; margin: 0 8px; }
-.menu-header { padding: 10px 12px; color: white; font-weight: 700; font-size: 13px!important; display: flex; justify-content: space-between; align-items: center;}
-.footer-bar { position: fixed; bottom: 0; left: 0; width: 100%; max-width: 21rem; background: #132a1a; padding: 12px 16px; display: flex; justify-content: space-between; color: #8fb996; font-size: 12px!important; border-top: 1px solid #1e3d27;}
+/* FONTE +10% */
+h1 { font-size: 1.54rem!important; color: #e8f5e9!important;}
+p, label, span { font-size: 13.2px!important; color: #e8f5e9!important; }
+div[data-testid="stTextInput"] input { height: 30px!important; font-size: 13.2px!important; background: #1a2e1f!important; border: 1px solid #2a4a32!important; color: white!important;}
+div[data-testid="InputInstructions"] { display: none!important; }
+
+.stButton>button {
+    background: #2d5a35;
+    color: white;
+    border-radius: 8px;
+    height: 34px!important;
+    font-size: 13.2px!important; /* +10% */
+    border: 1px solid #3a6b42;
+    width: 100%;
+    text-align: left;
+    padding-left: 10px!important;
+}
+.stButton>button:hover { background: #3a6b42; border-color: #4caf50;}
+.stButton>button[kind="primary"] { background: #4caf50!important; text-align: center!important; font-weight: bold; font-size: 14.3px!important;}
+
+.sidebar-header { background: white; padding: 12px 10px; margin: -10px -8px 0 -8px; display: flex; align-items: center; gap: 8px; width: calc(100% + 16px); }
+.menu-title { color: #7fb88a; font-size: 12.1px!important; font-weight: bold; letter-spacing: 1px; margin: 16px 0 6px 8px;}
+.menu-active { background: #5a8a65!important; border-radius: 8px; margin: 0 4px; }
+.menu-header { padding: 9px 10px; color: white; font-weight: 700; font-size: 14.3px!important; display: flex; justify-content: space-between;}
+.footer-bar { position: fixed; bottom: 0; left: 0; width: 250px; background: #132a1a; padding: 10px 12px; display: flex; justify-content: space-between; color: #8fb996; font-size: 13.2px!important; border-top: 1px solid #1e3d27;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -89,47 +106,44 @@ if "cep_data" not in st.session_state: st.session_state.cep_data = {"endereco":"
 if "cep_last" not in st.session_state: st.session_state.cep_last = ""
 if "sintegra_dados" not in st.session_state: st.session_state.sintegra_dados = {}
 if "menu_ativo" not in st.session_state: st.session_state.menu_ativo = "Cadastrar Cliente"
-
 def set_menu(item): st.session_state.menu_ativo = item
 
-# SIDEBAR IGUAL FOTO
 with st.sidebar:
     st.markdown("""
     <div class="sidebar-header">
-        <div style="border:2px solid #2e7d32; border-radius:12px; padding:5px; width:38px; height:38px; display:flex; align-items:center; justify-content:center; font-size:22px;">🌱</div>
-        <div style="line-height:1"><b style="color:#1b3a2a; font-size:19px;">SUBLIME</b><br><b style="color:#1b3a2a; font-size:15px;">Agro</b></div>
-        <div style="background:#e8f5e9; color:#2e7d32; font-size:10px; font-weight:bold; padding:3px 8px; border-radius:12px; margin-left:auto; border:1px solid #a5d6a7;">V3</div>
+        <div style="border:2px solid #2e7d32; border-radius:12px; padding:5px; width:34px; height:34px; display:flex; align-items:center; justify-content:center; font-size:20px;">🌱</div>
+        <div style="line-height:1"><b style="color:#1b3a2a; font-size:18px;">SUBLIME</b><br><b style="color:#1b3a2a; font-size:14px;">Agro</b></div>
+        <div style="background:#e8f5e9; color:#2e7d32; font-size:10px; font-weight:bold; padding:2px 7px; border-radius:12px; margin-left:auto;">V3</div>
     </div>
     """, unsafe_allow_html=True)
     st.markdown('<div class="menu-title">MENU</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="menu-active"><div class="menu-header">👥 CLIENTES <span>▼</span></div></div>', unsafe_allow_html=True)
-    col = st.columns([1, 10])[1]
+    col = st.columns([0.5, 9.5])[1]
     with col:
         if st.button("• Lista", key="c_lista", use_container_width=True): set_menu("Lista")
-        # Ativo com bolinha verde igual foto
         label_cad = "• Cadastrar Cliente ●" if st.session_state.menu_ativo=="Cadastrar Cliente" else "• Cadastrar Cliente"
         if st.button(label_cad, key="c_cad", use_container_width=True): set_menu("Cadastrar Cliente")
         if st.button("• Importar Planilha", key="c_imp", use_container_width=True): set_menu("Importar Planilha")
         if st.button("• Mapa Personalizado", key="c_mapa", use_container_width=True): set_menu("Mapa Personalizado")
 
-    st.markdown('<div style="margin-top:8px"><div class="menu-header">🚚 FORNECEDORES <span>›</span></div></div>', unsafe_allow_html=True)
-    col2 = st.columns([1,10])[1]
+    st.markdown('<div style="margin-top:6px"><div class="menu-header">🚚 FORNECEDORES <span>›</span></div></div>', unsafe_allow_html=True)
+    col2 = st.columns([0.5,9.5])[1]
     with col2:
         if st.button("• Lista", key="f_lista", use_container_width=True): set_menu("Fornecedores Lista")
         if st.button("• Cadastrar Fornecedor", key="f_cad", use_container_width=True): set_menu("Cadastrar Fornecedor")
         if st.button("• Mapa Fornecedores", key="f_mapa", use_container_width=True): set_menu("Mapa Fornecedores")
 
-    st.markdown('<div style="margin-top:8px"><div class="menu-header">📦 PRODUTOS <span>›</span></div></div>', unsafe_allow_html=True)
-    col3 = st.columns([1,10])[1]
+    st.markdown('<div style="margin-top:6px"><div class="menu-header">📦 PRODUTOS <span>›</span></div></div>', unsafe_allow_html=True)
+    col3 = st.columns([0.5,9.5])[1]
     with col3:
         if st.button("• Lista", key="p_lista", use_container_width=True): set_menu("Produtos Lista")
         if st.button("• Cadastrar Produto", key="p_cad", use_container_width=True): set_menu("Cadastrar Produto")
 
-    st.markdown('<div style="margin-top:8px"><div class="menu-header">⚙️ CONFIGURAÇÕES <span>›</span></div></div>', unsafe_allow_html=True)
-    col4 = st.columns([1,10])[1]
+    st.markdown('<div style="margin-top:6px"><div class="menu-header">⚙️ CONFIGURAÇÕES <span>›</span></div></div>', unsafe_allow_html=True)
+    col4 = st.columns([0.5,9.5])[1]
     with col4:
-        if st.button("• Limpar Cache", key="cfg1", use_container_width=True): st.cache_resource.clear(); st.toast("Cache limpo!")
+        if st.button("• Limpar Cache", key="cfg1", use_container_width=True): st.cache_resource.clear()
         if st.button("• Aparência", key="cfg2", use_container_width=True): set_menu("Aparência")
 
     st.markdown('<div style="height:80px"></div>', unsafe_allow_html=True)
@@ -137,16 +151,13 @@ with st.sidebar:
 
 menu = st.session_state.menu_ativo
 
-# CONTEÚDO
 if menu=="Lista":
     st.title("👨‍🌾 Clientes - Lista")
     st.dataframe(df_clientes, use_container_width=True, height=600)
 
 elif menu=="Cadastrar Cliente":
     st.title("➕ Cadastrar Cliente")
-
-    st.markdown("**📄 Upload Sintegra (opcional)**")
-    arquivo = st.file_uploader("Arraste o PDF", type=["pdf"], label_visibility="collapsed")
+    arquivo = st.file_uploader("📄 Upload Sintegra (opcional)", type=["pdf"], label_visibility="collapsed")
     if arquivo:
         try:
             import PyPDF2
@@ -160,21 +171,18 @@ elif menu=="Cadastrar Cliente":
             m3=re.search(r'RAZ[AÃ]O SOCIAL[:\s\-]*([A-Z0-9\s\.\-\/&]+?)(?:\s{2,}|NOME FANTASIA|CNPJ)', up)
             if m3: dados["nome"]=m3.group(1).strip().title()[:80]
             st.session_state.sintegra_dados=dados
-            if dados: st.success(f"✅ Encontrado: {dados}")
+            if dados: st.success(f"✅ {dados}")
         except Exception as e: st.error(str(e))
 
-    st.divider()
     c_cep, c_btn = st.columns([4,1])
-    with c_cep: cep_input=st.text_input("CEP *", placeholder="78048-000", value=st.session_state.cep_last, label_visibility="collapsed", key="cep_final")
+    with c_cep: cep_input=st.text_input("CEP *", value=st.session_state.cep_last, key="cep_final", label_visibility="collapsed", placeholder="CEP *")
     with c_btn: buscar=st.button("🔍 Buscar CEP", use_container_width=True)
     if buscar and cep_input:
         d=buscar_cep(cep_input)
         if d:
             st.session_state.cep_data={"endereco":d.get("logradouro",""), "cidade":d.get("localidade",""), "estado":d.get("uf",""), "complemento":d.get("complemento","")}
             st.session_state.cep_last=cep_input
-            st.toast(f"✅ {d.get('logradouro')}, {d.get('localidade')}")
             st.rerun()
-        else: st.error("CEP não encontrado")
 
     c1,c2,c3=st.columns(3)
     with c1:
@@ -191,24 +199,11 @@ elif menu=="Cadastrar Cliente":
         complemento=st.text_input("Complemento", value=st.session_state.cep_data.get("complemento",""), key="comp_f")
     estado=st.text_input("UF", value=st.session_state.cep_data.get("estado",""), max_chars=2, key="uf_f")
 
-    # SÓ SALVA NO CLIQUE - ENTER NÃO SALVA
     if st.button("Salvar Cliente 🌿", type="primary", use_container_width=True):
         if not nome: st.error("Nome obrigatório")
         else:
-            novo_id=len(df_clientes)+1 if not df_clientes.empty else 1
-            ws_clientes.append_row([novo_id, nome, telefone, cidade, estado.upper(), fazenda, cpf, cep_input, endereco, numero, complemento, ie, datetime.now().strftime("%Y-%m-%d")])
-            st.session_state.sintegra_dados={}
-            st.success(f"Cliente {nome} salvo com sucesso!"); st.balloons()
-            st.rerun()
-
-elif menu=="Produtos Lista":
-    st.title("📦 Produtos")
-    st.dataframe(df_produtos, use_container_width=True)
-
-elif menu=="Fornecedores Lista":
-    st.title("🚚 Fornecedores")
-    st.info("Lista de fornecedores - em desenvolvimento")
-
+            ws_clientes.append_row([len(df_clientes)+1, nome, telefone, cidade, estado.upper(), fazenda, cpf, cep_input, endereco, numero, complemento, ie, datetime.now().strftime("%Y-%m-%d")])
+            st.success(f"Cliente {nome} salvo!"); st.balloons(); st.rerun()
 else:
     st.title(menu)
-    st.info(f"Módulo {menu} - já está no menu igual da foto, pronto para implementar!")
+    st.info(f"Módulo {menu} em desenvolvimento")

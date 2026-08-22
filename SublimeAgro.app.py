@@ -1,9 +1,11 @@
 import streamlit as st
+import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
+from datetime import datetime
+import requests
 
-st.set_page_config(page_title="SUBLIME Agro - Zerando", layout="wide")
-st.warning("⚠️ MODO LIMPEZA TOTAL - Vai apagar tudo")
+st.set_page_config(page_title="SUBLIME Agro V4", layout="wide", page_icon="🌱", initial_sidebar_state="expanded")
 
 @st.cache_resource
 def conecta():
@@ -16,17 +18,22 @@ def conecta():
     return client.open_by_key(st.secrets["SPREADSHEET_ID"])
 
 sh = conecta()
+ws = sh.worksheet("Clientes")
+df = pd.DataFrame(ws.get_all_records())
 
-if st.button("🔴 CONFIRMAR - APAGAR TUDO E ZERAR", type="primary"):
-    for ws in sh.worksheets():
-        try:
-            sh.del_worksheet(ws)
-        except:
-            pass
-    
-    HEADERS_CLIENTES = ["ID","Nome","Telefone","Cidade","Estado","Fazenda","CPF_CNPJ","CEP","Endereco","Numero","Complemento","IE","Data_Cadastro"]
-    ws = sh.add_worksheet(title="Clientes", rows=1000, cols=len(HEADERS_CLIENTES))
-    ws.append_row(HEADERS_CLIENTES)
-    
-    st.success("✅ Tudo apagado e zerado! Agora só tem a aba Clientes limpa.")
-    st.balloons()
+with st.sidebar:
+    st.title("🌿 SUBLIME Agro")
+    menu = st.radio("MENU", ["Lista", "Cadastrar Cliente"])
+
+if menu == "Lista":
+    st.title("Clientes")
+    st.dataframe(df, use_container_width=True)
+else:
+    st.title("Cadastrar Cliente")
+    nome = st.text_input("Nome")
+    telefone = st.text_input("Telefone")
+    cidade = st.text_input("Cidade")
+    if st.button("Salvar"):
+        ws.append_row([len(df)+1, nome, telefone, cidade, "", "", "", "", "", "", "", "", datetime.now().strftime("%Y-%m-%d")])
+        st.success("Salvo!")
+        st.rerun()

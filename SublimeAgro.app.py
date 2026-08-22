@@ -111,7 +111,7 @@ elif menu == "Cadastrar Venda":
         if not df_produtos.empty:
             prod = df_produtos[df_produtos["Nome"] == produto]
             if not prod.empty:
-                valor_unit = float(prod.iloc[0]["Preco"])
+                valor_unit = float(prod.iloc[0]["Preço"])
 
         st.write(f"**Valor Unitário:** R$ {valor_unit} | **Total:** R$ {valor_unit * quantidade:,.2f}")
 

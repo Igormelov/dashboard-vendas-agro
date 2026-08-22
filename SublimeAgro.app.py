@@ -39,6 +39,8 @@ div[data-testid="stMetricValue"] { font-size: 15px!important; }
 [data-testid="stFileUploader"] section { padding: 6px!important; min-height: 60px!important;}
 [data-testid="stFileUploader"] * { font-size: 11px!important; }
 hr { margin: 0.4rem 0!important; }
+div[data-testid="InputInstructions"] { display: none!important; }
+[data-testid="stForm"] small { display: none!important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -69,50 +71,50 @@ def buscar_cep(cep):
 
 sh = conecta_gsheets()
 
-# --- CORREÇÃO DO ERRO DA PRINT ---
+# CORREÇÃO DO ERRO DA SUA PRINT - NÃO TENTA CRIAR ABA DUPLICADA
 def get_or_create_ws(nome, headers):
     try:
-        ws = sh.worksheet(nome)
-        # Se a aba existe mas o cabeçalho é antigo, atualiza
-        header_atual = ws.row_values(1)
-        if header_atual!= headers:
-            # Se faltam colunas novas, reescreve cabeçalho para não quebrar get_all_records
-            if len(header_atual) < len(headers):
-                ws.update('A1', [headers])
-        return ws
-    except:
+        # Tenta listar todas as abas primeiro
+        for ws in sh.worksheets():
+            if ws.title == nome:
+                return ws
+        # Se não achou, cria
         ws = sh.add_worksheet(title=nome, rows=1000, cols=len(headers))
         ws.append_row(headers)
         return ws
+    except Exception as e:
+        # Se der qualquer erro de API, tenta pegar de novo
+        try:
+            return sh.worksheet(nome)
+        except:
+            st.error(f"Erro ao acessar aba {nome}: {e}")
+            st.stop()
 
 def carrega_df_seguro(ws, headers):
-    """Lê planilha sem quebrar se estiver vazia ou com cabeçalho antigo"""
     try:
-        dados = ws.get_all_records()
-        df = pd.DataFrame(dados)
-        if df.empty:
+        vals = ws.get_all_values()
+        if len(vals) <= 1:
             return pd.DataFrame(columns=headers)
-        return normaliza(df)
-    except Exception:
-        # Se get_all_records falhar (erro da sua print), tenta get_all_values
-        try:
-            vals = ws.get_all_values()
-            if len(vals) <= 1:
-                return pd.DataFrame(columns=headers)
-            df = pd.DataFrame(vals[1:], columns=vals[0])
-            return normaliza(df)
-        except:
-            return pd.DataFrame(columns=headers)
+        # Usa primeira linha como header, mas normaliza
+        df = pd.DataFrame(vals[1:], columns=[c.strip() for c in vals[0]])
+        # Se faltam colunas, adiciona vazias
+        for h in headers:
+            if h not in df.columns:
+                df[h] = ""
+        return df
+    except:
+        return pd.DataFrame(columns=headers)
 
 HEADERS_CLIENTES = ["ID","Nome","Telefone","Cidade","Estado","Fazenda","CPF_CNPJ","CEP","Endereco","Numero","Complemento","IE","Data_Cadastro"]
+HEADERS_VENDAS = ["ID","Data","Cliente","Produto","Quantidade","Valor_Unit","Valor_Total","Cidade","Estado","Vendedor","Status"]
+HEADERS_PRODUTOS = ["ID","Nome","Preco","Estoque"]
 
-ws_vendas = get_or_create_ws("Vendas", ["ID","Data","Cliente","Produto","Quantidade","Valor_Unit","Valor_Total","Cidade","Estado","Vendedor","Status"])
-ws_produtos = get_or_create_ws("Produtos", ["ID","Nome","Preco","Estoque"])
+ws_vendas = get_or_create_ws("Vendas", HEADERS_VENDAS)
+ws_produtos = get_or_create_ws("Produtos", HEADERS_PRODUTOS)
 ws_clientes = get_or_create_ws("Clientes", HEADERS_CLIENTES)
 
-# AGORA COM LEITOR SEGURO - NÃO QUEBRA MAIS
-df_vendas = carrega_df_seguro(ws_vendas, ["ID","Data","Cliente","Produto","Quantidade","Valor_Unit","Valor_Total","Cidade","Estado","Vendedor","Status"])
-df_produtos = carrega_df_seguro(ws_produtos, ["ID","Nome","Preco","Estoque"])
+df_vendas = carrega_df_seguro(ws_vendas, HEADERS_VENDAS)
+df_produtos = carrega_df_seguro(ws_produtos, HEADERS_PRODUTOS)
 df_clientes = carrega_df_seguro(ws_clientes, HEADERS_CLIENTES)
 
 if "cep_data" not in st.session_state: st.session_state.cep_data = {"endereco":"","cidade":"","estado":"","complemento":""}
@@ -129,14 +131,7 @@ with st.sidebar:
 
 if menu=="Dashboard":
     st.title("Dashboard de Vendas 🌿")
-    if not df_vendas.empty:
-        df_vendas['Valor_Total']=pd.to_numeric(df_vendas['Valor_Total'], errors='coerce').fillna(0)
-        total=df_vendas['Valor_Total'].sum()
-        c1,c2,c3=st.columns(3)
-        c1.metric("Faturamento Total", f"R$ {total:,.2f}")
-        c2.metric("Total Vendas", len(df_vendas))
-        c3.metric("Ticket Médio", f"R$ {total/len(df_vendas):,.2f}" if len(df_vendas)>0 else "R$ 0")
-    else: st.warning("Sem vendas")
+    st.dataframe(df_vendas, use_container_width=True, height=500)
 
 elif menu=="Vendas":
     st.title("Todas as Vendas")
@@ -147,8 +142,8 @@ elif menu=="Cadastrar Venda":
     lista = df_clientes["Nome"].tolist() if not df_clientes.empty and "Nome" in df_clientes.columns else []
     sel = st.selectbox("Cliente *", ["Selecione..."]+lista+["Cliente Avulso"])
     cidade_auto=estado_auto=""
-    if sel not in ["Selecione...","Cliente Avulso",""] and not df_clientes.empty:
-        d=df_clientes[df_clientes["Nome"]==sel] if "Nome" in df_clientes.columns else pd.DataFrame()
+    if sel not in ["Selecione...","Cliente Avulso",""] and not df_clientes.empty and "Nome" in df_clientes.columns:
+        d=df_clientes[df_clientes["Nome"]==sel]
         if not d.empty: cidade_auto=d.iloc[0].get("Cidade",""); estado_auto=d.iloc[0].get("Estado","")
     with st.form("venda"):
         c1,c2=st.columns(2)
@@ -195,10 +190,8 @@ elif menu=="Novo Cliente":
     st.divider()
     st.markdown("#### Endereço - CEP com Lupa")
     c_cep, c_btn = st.columns([4,1])
-    with c_cep: cep_input=st.text_input("CEP *", placeholder="78048-000", value=st.session_state.cep_last, key="cep_input_novo")
-    with c_btn: 
-        st.markdown("<br>", unsafe_allow_html=True)
-        buscar=st.button("🔍 Buscar CEP", use_container_width=True)
+    with c_cep: cep_input=st.text_input("CEP *", placeholder="78250-000", value=st.session_state.cep_last, key="cep_input_novo", label_visibility="collapsed")
+    with c_btn: buscar=st.button("🔍 Buscar CEP", use_container_width=True)
     if buscar and cep_input:
         dcep=buscar_cep(cep_input)
         if dcep:
@@ -211,8 +204,7 @@ elif menu=="Novo Cliente":
             st.rerun()
         else: st.error("CEP não encontrado")
 
-    # SEM FORM - SÓ SALVA NO BOTÃO
-    st.markdown("#### Dados do Cliente")
+    # SEM FORM - ENTER NÃO SALVA MAIS
     c1,c2,c3 = st.columns(3)
     with c1:
         nome=st.text_input("Nome Completo / Razão Social *", value=st.session_state.sintegra_dados.get("nome",""), key="nome_cli")
@@ -228,7 +220,6 @@ elif menu=="Novo Cliente":
         complemento=st.text_input("Complemento", value=st.session_state.cep_data.get("complemento",""), key="comp_cli")
     estado=st.text_input("UF", value=st.session_state.cep_data.get("estado",""), max_chars=2, key="uf_cli")
 
-    # BOTÃO FORA DO FORM - ENTER NÃO SALVA MAIS
     if st.button("Salvar Cliente 🌿", type="primary"):
         if not nome: st.error("Nome obrigatório")
         else:

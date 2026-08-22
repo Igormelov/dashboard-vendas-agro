@@ -4,14 +4,14 @@ from google.oauth2.service_account import Credentials
 import pandas as pd
 from datetime import datetime
 
-st.set_page_config(page_title="SUBLIME Agro - Cadastro", layout="wide", page_icon="🌱")
+st.set_page_config(page_title="SUBLIME Agro - Clientes", layout="wide", page_icon="🌱")
 
-# CSS simples
 st.markdown("""
 <style>
 .stApp {background:#0f2315}
 h1,h2,h3,p,label {color:white !important}
-div[data-testid="stForm"] {background:#1a3a24; border-radius:15px; padding:20px}
+div[data-testid="stTextInput"] input, div[data-testid="stSelectbox"] div {background:#1a3a24 !important; color:white !important}
+div[data-testid="stForm"] {background:#1a3a24; border-radius:15px; padding:20px; border:1px solid #2a5a35}
 </style>
 """, unsafe_allow_html=True)
 
@@ -27,106 +27,98 @@ def conectar():
 
 sh = conectar()
 
-# Cria abas se não existir
-def get_or_create_ws(nome, headers):
+HEADERS = ["ID","Data","Nome/Fazenda","Tipo","CPF/CNPJ","Telefone","Cidade","UF","Endereco","Contato","Status"]
+
+def get_or_create_ws():
     try:
-        ws = sh.worksheet(nome)
+        ws = sh.worksheet("Clientes")
     except:
-        ws = sh.add_worksheet(title=nome, rows=1000, cols=len(headers))
-        ws.append_row(headers)
+        ws = sh.add_worksheet(title="Clientes", rows=1000, cols=len(HEADERS))
+        ws.append_row(HEADERS)
     return ws
 
-HEADERS_CLIENTES = ["ID","Data","Nome/Fazenda","Tipo","CPF/CNPJ","Telefone","Cidade","UF","Endereco","Contato","Status"]
-HEADERS_FORNEC = ["ID","Data","Nome/Empresa","Tipo","CPF/CNPJ","Telefone","Cidade","UF","Endereco","Produto","Status"]
-
-ws_clientes = get_or_create_ws("Clientes", HEADERS_CLIENTES)
-ws_fornec = get_or_create_ws("Fornecedores", HEADERS_FORNEC)
+ws = get_or_create_ws()
 
 with st.sidebar:
     st.markdown("### 🌱 SUBLIME Agro")
     st.caption("Cadastro v1.0 - Zero")
-    menu = st.radio("Menu", ["➕ Cadastrar Cliente", "🏭 Cadastrar Fornecedor", "📋 Ver Cadastros"])
+    st.markdown("**Menu**")
+    menu = st.radio("", ["Clientes"], label_visibility="collapsed")
 
-if menu == "➕ Cadastrar Cliente":
-    st.title("➕ Cadastrar Cliente")
-    
+# --- TELA CLIENTES COM BUSCA ---
+st.title("👥 Clientes")
+
+# Carrega dados
+@st.cache_data(ttl=30)
+def carregar_dados():
+    dados = ws.get_all_records()
+    return pd.DataFrame(dados) if dados else pd.DataFrame(columns=HEADERS)
+
+df = carregar_dados()
+
+# Barra de busca
+c1,c2,c3 = st.columns([3,1,1])
+with c1:
+    busca = st.text_input("🔍 Buscar cliente", placeholder="Digite nome, fazenda, cidade, telefone...", label_visibility="collapsed")
+with c2:
+    filtro_tipo = st.selectbox("Tipo", ["Todos"] + ["Fazenda de Gado","Confinamento","Fábrica de Ração","Cooperativa","Frigorífico","Produtor Rural","Outro"], label_visibility="collapsed")
+with c3:
+    filtro_status = st.selectbox("Status", ["Todos","Ativo","Prospect","Inativo"], label_visibility="collapsed")
+
+# Aplica filtros
+df_filtrado = df.copy()
+if not df_filtrado.empty:
+    if busca:
+        busca_lower = busca.lower()
+        df_filtrado = df_filtrado[df_filtrado.apply(lambda row: busca_lower in str(row["Nome/Fazenda"]).lower() or busca_lower in str(row["Cidade"]).lower() or busca_lower in str(row["Telefone"]).lower() or busca_lower in str(row["CPF/CNPJ"]).lower(), axis=1)]
+    if filtro_tipo != "Todos":
+        df_filtrado = df_filtrado[df_filtrado["Tipo"] == filtro_tipo]
+    if filtro_status != "Todos":
+        df_filtrado = df_filtrado[df_filtrado["Status"] == filtro_status]
+
+# Métricas
+m1,m2,m3 = st.columns(3)
+m1.metric("Total", len(df))
+m2.metric("Filtrados", len(df_filtrado))
+m3.metric("Ativos", len(df[df["Status"]=="Ativo"]) if not df.empty and "Status" in df.columns else 0)
+
+st.divider()
+
+# Lista
+if df_filtrado.empty:
+    if df.empty:
+        st.info("📭 Nenhum cliente cadastrado ainda. Clique em 'Novo Cliente' abaixo.")
+    else:
+        st.warning(f"Nenhum resultado para '{busca}'")
+else:
+    st.dataframe(df_filtrado, use_container_width=True, hide_index=True, height=400)
+
+# Formulário de cadastro expansível
+with st.expander("➕ Novo Cliente", expanded=df.empty):
     with st.form("form_cliente", clear_on_submit=True):
         c1,c2 = st.columns(2)
         with c1:
-            nome = st.text_input("Nome / Fazenda *", placeholder="Ex: Fazenda Morro da Lua")
+            nome = st.text_input("Nome / Fazenda *")
             tipo = st.selectbox("Tipo *", ["Fazenda de Gado","Confinamento","Fábrica de Ração","Cooperativa","Frigorífico","Produtor Rural","Outro"])
             doc = st.text_input("CPF / CNPJ")
-            telefone = st.text_input("Telefone *", placeholder="(66) 99928-3411")
+            telefone = st.text_input("Telefone *", placeholder="(66) 99999-9999")
         with c2:
-            cidade = st.text_input("Cidade *", placeholder="Rondonópolis")
-            uf = st.text_input("UF *", max_chars=2, placeholder="MT")
+            cidade = st.text_input("Cidade *")
+            uf = st.text_input("UF *", max_chars=2)
             endereco = st.text_input("Endereço / Rodovia")
-            contato = st.text_input("Nome do Contato na Fazenda")
+            contato = st.text_input("Contato na Fazenda")
 
         status = st.selectbox("Status", ["Ativo","Prospect","Inativo"])
-        obs = st.text_area("Observação", height=80)
-
+        
         salvar = st.form_submit_button("💾 Salvar Cliente", type="primary", use_container_width=True)
-
         if salvar:
             if not nome or not telefone or not cidade or not uf:
-                st.error("Preencha os campos com *")
+                st.error("Preencha Nome, Telefone, Cidade e UF")
             else:
                 id_gerado = datetime.now().strftime("%y%m%d%H%M%S")
                 data = datetime.now().strftime("%d/%m/%Y %H:%M")
                 linha = [id_gerado, data, nome, tipo, doc, telefone, cidade, uf.upper(), endereco, contato, status]
-                ws_clientes.append_row(linha)
-                st.success(f"✅ Cliente {nome} salvo com sucesso!")
-                st.balloons()
-
-elif menu == "🏭 Cadastrar Fornecedor":
-    st.title("🏭 Cadastrar Fornecedor")
-
-    with st.form("form_fornec", clear_on_submit=True):
-        c1,c2 = st.columns(2)
-        with c1:
-            nome = st.text_input("Nome / Empresa *", placeholder="Ex: Nutrição Animal LTDA")
-            tipo = st.selectbox("Tipo *", ["Insumos","Ração/Concentrado","Medicamentos","Maquinário","Transporte","Outro"])
-            doc = st.text_input("CNPJ")
-            telefone = st.text_input("Telefone *", placeholder="(11) 99999-9999")
-        with c2:
-            cidade = st.text_input("Cidade *")
-            uf = st.text_input("UF *", max_chars=2)
-            endereco = st.text_input("Endereço")
-            produto = st.text_input("Produto/Serviço Principal")
-
-        status = st.selectbox("Status", ["Ativo","Em Avaliação","Inativo"])
-
-        salvar = st.form_submit_button("💾 Salvar Fornecedor", type="primary", use_container_width=True)
-
-        if salvar:
-            if not nome or not telefone or not cidade or not uf:
-                st.error("Preencha os campos com *")
-            else:
-                id_gerado = datetime.now().strftime("%y%m%d%H%M%S")
-                data = datetime.now().strftime("%d/%m/%Y %H:%M")
-                linha = [id_gerado, data, nome, tipo, doc, telefone, cidade, uf.upper(), endereco, produto, status]
-                ws_fornec.append_row(linha)
-                st.success(f"✅ Fornecedor {nome} salvo!")
-                st.balloons()
-
-else: # Ver Cadastros
-    st.title("📋 Cadastros")
-    aba = st.radio("Ver:", ["Clientes","Fornecedores"], horizontal=True)
-
-    if aba == "Clientes":
-        dados = ws_clientes.get_all_records()
-        if dados:
-            df = pd.DataFrame(dados)
-            st.dataframe(df, use_container_width=True, hide_index=True)
-            st.download_button("📥 Baixar Clientes CSV", df.to_csv(index=False), "clientes.csv", use_container_width=True)
-        else:
-            st.info("Nenhum cliente cadastrado ainda")
-    else:
-        dados = ws_fornec.get_all_records()
-        if dados:
-            df = pd.DataFrame(dados)
-            st.dataframe(df, use_container_width=True, hide_index=True)
-            st.download_button("📥 Baixar Fornecedores CSV", df.to_csv(index=False), "fornecedores.csv", use_container_width=True)
-        else:
-            st.info("Nenhum fornecedor cadastrado ainda")
+                ws.append_row(linha)
+                st.cache_data.clear()
+                st.success(f"✅ {nome} salvo!")
+                st.rerun()

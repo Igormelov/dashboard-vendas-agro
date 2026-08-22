@@ -2,15 +2,35 @@ import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
 import pandas as pd
-from datetime import datetime
 
 st.set_page_config(page_title="SUBLIME Agro - Clientes", layout="wide", page_icon="🌱")
 
+# COR DE FUNDO IGUAL DA SUA PRINT #212121
 st.markdown("""
 <style>
-.stApp {background:#0f2315}
-h1,h2,h3,p,label {color:white!important}
-div[data-testid="stForm"] {background:#1a3a24; border-radius:15px; padding:20px; border:1px solid #2a5a35}
+.stApp {background:#212121!important}
+h1,h2,h3,p,label,span {color:#e0e0e0!important}
+[data-testid="stSidebar"] {background:#1a1a1a!important; border-right:1px solid #333}
+
+/* Tabela estilo Bling da sua print */
+.tabela-header {
+    display:flex; background:#1a1a1a; color:#9e9e9e;
+    padding:12px 16px; font-size:13px; font-weight:500;
+    border-bottom:1px solid #333; border-top:1px solid #333;
+}
+.tabela-row {
+    display:flex; background:#212121; color:#e0e0e0;
+    padding:14px 16px; font-size:14px; align-items:center;
+    border-bottom:1px solid #2e2e2e; transition:0.2s;
+}
+.tabela-row:hover {background:#2a2a2a}
+.col-codigo {width:80px; color:#9e9e9e}
+.col-nome {flex:1.5; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.col-doc {width:180px}
+.col-cidade {width:180px}
+.col-tel {width:160px}
+.col-acao {width:40px; text-align:right}
+.btn-acao {background:none; border:none; color:#9e9e9e; cursor:pointer; font-size:18px}
 </style>
 """, unsafe_allow_html=True)
 
@@ -25,86 +45,94 @@ def conectar():
     return client.open_by_key(st.secrets["SPREADSHEET_ID"])
 
 sh = conectar()
-
-# Usa a aba Clientes que já existe (com seus headers atuais)
 ws = sh.worksheet("Clientes")
 
 @st.cache_data(ttl=30)
-def carregar_dados():
+def carregar():
     dados = ws.get_all_records()
     return pd.DataFrame(dados) if dados else pd.DataFrame()
 
-df = carregar_dados()
+df = carregar()
 
-# Modal de detalhes
-@st.dialog("📋 Detalhes do Cliente", width="large")
-def mostrar_detalhes(cliente):
+@st.dialog("Detalhes do Cliente", width="large")
+def modal_cliente(cliente):
+    st.markdown(f"""
+    <div style="background:#2a2a2a; padding:16px; border-radius:8px; border:1px solid #333">
+    <h3 style="color:white; margin-top:0">{cliente.get('Nome','')} </h3>
+    </div>
+    """, unsafe_allow_html=True)
     c1,c2 = st.columns(2)
-    for col in cliente.index:
-        val = cliente[col]
-        if pd.isna(val) or str(val).strip() == "":
-            val = "-"
-        # Coloca 2 colunas
-        if list(cliente.index).index(col) % 2 == 0:
-            with c1: st.markdown(f"**{col}:** {val}")
+    for i, (k,v) in enumerate(cliente.items()):
+        if str(v).strip() == "": v = "-"
+        if i%2==0:
+            with c1: st.markdown(f"**{k}:** {v}")
         else:
-            with c2: st.markdown(f"**{col}:** {val}")
+            with c2: st.markdown(f"**{k}:** {v}")
 
     st.divider()
-    tel = str(cliente.get("Telefone","")).replace(" ","").replace("(","").replace(")","").replace("-","")
-    if tel:
-        st.link_button(f"📱 WhatsApp: {cliente.get('Telefone')}", f"https://wa.me/55{tel}", use_container_width=True)
-
     if st.button("Fechar", use_container_width=True):
         st.rerun()
 
+# Sidebar só Clientes
 with st.sidebar:
     st.markdown("### 🌱 SUBLIME Agro")
-    st.caption("Cadastro v1.0 - Zero")
-    st.markdown("**Menu**")
-    st.radio("", ["Clientes"], label_visibility="collapsed")
+    st.radio("Menu", ["Clientes"], label_visibility="collapsed")
 
-st.title("👥 Clientes")
+# Busca estilo Bling
+c_busca, c_novo = st.columns([4,1])
+with c_busca:
+    busca = st.text_input("", placeholder="🔍 Buscar por nome, código, CPF/CNPJ, cidade...", label_visibility="collapsed")
+with c_novo:
+    if st.button("＋ Novo Cliente", type="primary", use_container_width=True):
+        st.session_state['novo'] = True
 
-# Busca
-busca = st.text_input("🔍 Buscar cliente", placeholder="Digite nome, CPF/CNPJ, telefone...", label_visibility="collapsed")
-
-df_filtrado = df.copy()
-if not df_filtrado.empty and busca:
+df_f = df.copy()
+if not df_f.empty and busca:
     b = busca.lower()
-    # busca em todas as colunas de texto
-    mask = df_filtrado.astype(str).apply(lambda x: x.str.lower().str.contains(b, na=False)).any(axis=1)
-    df_filtrado = df_filtrado[mask]
+    df_f = df_f[df_f.astype(str).apply(lambda x: x.str.lower().str.contains(b, na=False)).any(axis=1)]
 
-# Métricas
-if not df.empty:
-    m1,m2 = st.columns(2)
-    m1.metric("Total de Clientes", len(df))
-    m2.metric("Filtrados", len(df_filtrado))
-    st.divider()
+# Header da tabela igual sua print
+st.markdown("""
+<div class="tabela-header">
+    <div class="col-codigo">Código</div>
+    <div class="col-nome">Nome</div>
+    <div class="col-doc">CPF/CNPJ</div>
+    <div class="col-cidade">Cidade</div>
+    <div class="col-tel">Telefone</div>
+    <div class="col-acao"></div>
+</div>
+""", unsafe_allow_html=True)
 
-# TABELA SIMPLIFICADA: só ID, Nome, CPF/CNPJ e Telefone
-if df_filtrado.empty:
-    st.info("Nenhum cliente encontrado" if not df.empty else "Nenhum cliente cadastrado")
+if df_f.empty:
+    st.markdown("<div style='padding:40px; text-align:center; color:#9e9e9e'>Nenhum cliente encontrado</div>", unsafe_allow_html=True)
 else:
-    # Detecta nome das colunas (seu sheet tem Nome e CPF_CNPJ)
-    col_id = "ID" if "ID" in df_filtrado.columns else df_filtrado.columns[0]
-    col_nome = "Nome" if "Nome" in df_filtrado.columns else "Nome/Fazenda" if "Nome/Fazenda" in df_filtrado.columns else df_filtrado.columns[1]
-    col_doc = "CPF_CNPJ" if "CPF_CNPJ" in df_filtrado.columns else "CPF/CNPJ" if "CPF/CNPJ" in df_filtrado.columns else None
-    col_tel = "Telefone" if "Telefone" in df_filtrado.columns else None
+    # Detecta colunas
+    col_id = "ID" if "ID" in df_f.columns else df_f.columns[0]
+    col_nome = "Nome" if "Nome" in df_f.columns else "Nome/Fazenda"
+    col_doc = "CPF_CNPJ" if "CPF_CNPJ" in df_f.columns else "CPF/CNPJ"
+    col_cidade = "Cidade" if "Cidade" in df_f.columns else "CIDADE" if "CIDADE" in df_f.columns else None
+    col_tel = "Telefone" if "Telefone" in df_f.columns else None
 
-    cols_mostrar = [c for c in [col_id, col_nome, col_doc, col_tel] if c and c in df_filtrado.columns]
-    df_tabela = df_filtrado[cols_mostrar].copy()
+    for idx, row in df_f.head(100).iterrows():
+        id_val = row.get(col_id, "")
+        nome_val = row.get(col_nome, "")
+        doc_val = row.get(col_doc, "") if col_doc in row else ""
+        cidade_val = row.get(col_cidade, "") if col_cidade and col_cidade in row else ""
+        tel_val = row.get(col_tel, "") if col_tel and col_tel in row else ""
 
-    # Adiciona coluna de ação
-    st.dataframe(df_tabela, use_container_width=True, hide_index=True, height=450)
+        # Linha com colunas + botão 3 pontinhos
+        c1,c2,c3,c4,c5,c6 = st.columns([0.8, 3.5, 1.8, 1.8, 1.5, 0.4])
+        with c1: st.markdown(f"<div style='color:#9e9e9e; font-size:14px; padding-top:6px'>{id_val}</div>", unsafe_allow_html=True)
+        with c2: st.markdown(f"<div style='color:white; font-size:14px; padding-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis' title='{nome_val}'>{nome_val}</div>", unsafe_allow_html=True)
+        with c3: st.markdown(f"<div style='color:#e0e0e0; font-size:14px; padding-top:6px'>{doc_val}</div>", unsafe_allow_html=True)
+        with c4: st.markdown(f"<div style='color:#e0e0e0; font-size:14px; padding-top:6px'>{cidade_val}</div>", unsafe_allow_html=True)
+        with c5: st.markdown(f"<div style='color:#e0e0e0; font-size:14px; padding-top:6px'>{tel_val}</div>", unsafe_allow_html=True)
+        with c6:
+            if st.button("⋮", key=f"btn_{id_val}_{idx}", help="Ver detalhes"):
+                st.session_state['cliente_sel'] = row
+                modal_cliente(row)
+        st.markdown("<div style='border-bottom:1px solid #2e2e2e; margin:2px 0'></div>", unsafe_allow_html=True)
 
-    # Seleção para abrir detalhes
-    st.markdown("#### 👆 Clique para ver detalhes")
-    opcoes = [f"{row[col_id]} - {row[col_nome]}" for _, row in df_filtrado.iterrows()]
-    selecionado = st.selectbox("Selecione o cliente", ["Selecione..."] + opcoes, label_visibility="collapsed")
-
-    if selecionado!= "Selecione...":
-        id_selecionado = selecionado.split(" - ")[0]
-        cliente = df_filtrado[df_filtrado[col_id].astype(str) == id_selecionado].iloc[0]
-        mostrar_detalhes(cliente)
+# Se clicou via session_state
+if 'cliente_sel' in st.session_state and st.session_state['cliente_sel'] is not None:
+    pass

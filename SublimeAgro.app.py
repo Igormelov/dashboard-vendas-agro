@@ -4,10 +4,10 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 import requests, time, urllib.parse
-import streamlit.components.v1 as components
+import folium
+from streamlit_folium import st_folium
 
 st.set_page_config(page_title="SUBLIME Agro FREE", layout="wide", page_icon="🌱")
-
 st.markdown("""<style>.stApp{background:#0f2315!important} h1,h2,h3,p,label{color:white!important}</style>""", unsafe_allow_html=True)
 
 @st.cache_resource
@@ -33,114 +33,100 @@ def get_latlon(cidade, estado):
         r=requests.get(url, headers={"User-Agent":"SUBLIME"}, timeout=10)
         if r.json(): return float(r.json()[0]["lat"]), float(r.json()[0]["lon"])
     except: pass
-    return None,None
+    return -16.4708, -54.6386
 
 def buscar_free(cidade, estado, termos):
-    """Busca 100% free - Photon + Nominatim + Overpass Kumi"""
     resultados=[]
-    # 1. Photon (mais estável que Overpass)
     for termo in termos:
         try:
             q=f"{termo} {cidade} {estado}"
-            # Photon
             url=f"https://photon.komoot.io/api/?q={urllib.parse.quote(q)}&limit=20&lang=pt"
             r=requests.get(url, timeout=10)
             if r.status_code==200:
                 for f in r.json().get("features",[]):
                     props=f.get("properties",{})
-                    resultados.append({
-                        "Nome": props.get("name", termo.title()),
-                        "Tipo": termo,
-                        "Endereco": f"{props.get('street','')} {props.get('city','')} {props.get('state','')}",
-                        "Telefone": props.get("phone",""),
-                        "Cidade": cidade, "Estado": estado,
-                        "Fonte": "Photon/OSM",
-                        "Lat": f["geometry"]["coordinates"][1],
-                        "Lon": f["geometry"]["coordinates"][0]
-                    })
+                    if props.get("name"):
+                        resultados.append({
+                            "Nome": props.get("name"), "Tipo": termo,
+                            "Endereco": f"{props.get('street','')} {props.get('city','')}",
+                            "Telefone": props.get("phone",""),
+                            "Cidade": cidade, "Estado": estado, "Fonte": "Photon",
+                            "Lat": f["geometry"]["coordinates"][1], "Lon": f["geometry"]["coordinates"][0]
+                        })
             time.sleep(0.5)
         except: continue
-
-    # 2. Overpass Kumi (backup)
-    lat,lon=get_latlon(cidade,estado)
-    if lat:
-        try:
-            query=f"""[out:json][timeout:20];(node["shop"="agrarian"](around:30000,{lat},{lon});node["landuse"="farmyard"](around:30000,{lat},{lon});way["landuse"="farmyard"](around:30000,{lat},{lon}););out center 50;"""
-            r=requests.post("https://overpass.kumi.systems/api/interpreter", data={"data":query}, timeout=20)
-            if r.status_code==200:
-                for el in r.json().get("elements",[]):
-                    tags=el.get("tags",{})
-                    if tags.get("name"):
-                        resultados.append({
-                            "Nome": tags["name"], "Tipo": "Fazenda OSM",
-                            "Endereco": f"{cidade}-{estado}", "Telefone": tags.get("phone",""),
-                            "Cidade": cidade, "Estado": estado, "Fonte": "Overpass Kumi",
-                            "Lat": el.get("lat"), "Lon": el.get("lon")
-                        })
-        except: pass
     return resultados
 
 with st.sidebar:
-    st.markdown('<div style="background:white;padding:10px;border-radius:10px;text-align:center"><b>🌿 SUBLIME Agro</b><br><span style="background:#c5e8c8;padding:2px 6px;border-radius:5px;font-size:11px">100% FREE</span></div>', unsafe_allow_html=True)
-    menu=st.radio("Menu", ["🔍 Prospectar Cidade", "🗺️ Mapa Google (Grátis)", "📋 Meus Prospects"])
+    st.markdown('<div style="background:white;padding:10px;border-radius:10px;text-align:center"><b>🌿 SUBLIME Agro</b><br><span style="background:#c5e8c8;padding:2px 6px;border-radius:5px;font-size:11px">v5.1 FIX</span></div>', unsafe_allow_html=True)
+    menu=st.radio("Menu", ["🔍 Prospectar Cidade", "🗺️ Mapa que FUNCIONA", "📋 Meus Prospects"])
 
 if menu=="🔍 Prospectar Cidade":
-    st.title("🔍 Prospecção 100% Grátis - Sem Cartão")
+    st.title("🔍 Prospecção 100% Grátis")
     c1,c2=st.columns(2)
     with c1: cidade=st.text_input("Cidade", "Rondonópolis")
     with c2: estado=st.text_input("UF", "MT", max_chars=2)
-
-    tipos=st.multiselect("Buscar", ["confinamento","fazenda","fabrica de racao","cooperativa","agropecuaria","frigorifico"], default=["fazenda","confinamento","fabrica de racao"])
-
-    if st.button("🚀 Buscar Agora - FREE", type="primary", use_container_width=True):
-        with st.spinner(f"Varrendo {cidade} sem API paga..."):
+    tipos=st.multiselect("Buscar", ["confinamento","fazenda","fabrica de racao","cooperativa","agropecuaria"], default=["fazenda","confinamento"])
+    if st.button("🚀 Buscar Agora", type="primary", use_container_width=True):
+        with st.spinner(f"Varrendo {cidade}..."):
             res=buscar_free(cidade,estado,tipos)
             if res:
                 df=pd.DataFrame(res).drop_duplicates(subset=["Nome"])
-                df=df[df["Nome"].str.len()>3]
-                st.success(f"✅ {len(df)} encontrados - 100% grátis!")
-                st.dataframe(df[["Nome","Tipo","Endereco","Telefone","Fonte"]], use_container_width=True)
+                st.success(f"✅ {len(df)} encontrados!")
+                st.dataframe(df[["Nome","Tipo","Endereco","Fonte"]], use_container_width=True)
+                # Mapa com os resultados
+                lat,lon=get_latlon(cidade,estado)
+                m=folium.Map(location=[lat,lon], zoom_start=11)
+                for _,r in df.iterrows():
+                    if r["Lat"]: folium.Marker([r["Lat"], r["Lon"]], popup=r["Nome"], icon=folium.Icon(color="green")).add_to(m)
+                st_folium(m, height=400, use_container_width=True)
 
-                if st.button(f"💾 Salvar {len(df)} no Sheets"):
+                if st.button(f"💾 Salvar {len(df)}"):
                     for _,r in df.iterrows():
                         ws.append_row([datetime.now().strftime("%H%M%S"), r["Nome"], r["Tipo"], r["Telefone"], r["Cidade"], r["Estado"], r["Endereco"], r["Fonte"], datetime.now().strftime("%Y-%m-%d"), "Novo"])
-                    st.balloons(); st.success("Salvo!")
-            else:
-                st.error("Nada no OSM. Use a aba Mapa Google.")
+                    st.balloons()
+            else: st.warning("Nada encontrado. Tente o Mapa.")
 
-elif menu=="🗺️ Mapa Google (Grátis)":
-    st.title("🗺️ Google Maps Dentro do App - Modo Manual Grátis")
-    st.markdown("Esse é o jeito grátis que funciona igual sua print - você vê o telefone e clica pra salvar")
+elif menu=="🗺️ Mapa que FUNCIONA":
+    st.title("🗺️ Mapa - Corrigido (OpenStreetMap + Google em nova aba)")
+    st.warning("Google bloqueia dentro do app (sua print com ícone quebrado é por isso). Agora uso OSM dentro + botão pro Google.")
 
     c1,c2,c3=st.columns([2,1,1])
-    with c1: cidade=st.text_input("Cidade Maps", "Rondonópolis", key="cm")
-    with c2: estado=st.text_input("UF Maps", "MT", key="um")
-    with c3: tipo=st.selectbox("O que ver", ["fazendas de gado","confinamento","fabrica de racao","cooperativa agricola"])
+    with c1: cidade=st.text_input("Cidade", "Rondonópolis", key="cm")
+    with c2: estado=st.text_input("UF", "MT", key="um")
+    with c3: tipo=st.selectbox("Buscar", ["fazendas de gado","confinamento","fabrica de racao","cooperativa agricola"])
 
     lat,lon=get_latlon(cidade,estado)
-    if lat:
-        query_url=urllib.parse.quote(f"{tipo} em {cidade} {estado}")
-        maps_url=f"https://www.google.com/maps/search/{query_url}/@{lat},{lon},11z"
-        components.iframe(maps_url, height=550)
-        st.info("👆 Navegue no mapa acima. Quando achar um com telefone (66) 999..., copie e salve abaixo:")
 
-        with st.form("save_manual"):
-            c1,c2=st.columns(2)
-            with c1:
-                nome=st.text_input("Nome visto no mapa (ex: FAZENDA MORRO DA LUA)")
-                tel=st.text_input("Telefone visto")
-            with c2:
-                end=st.text_input("Endereço")
-                tipo_f=st.text_input("Tipo", value=tipo)
-            if st.form_submit_button("💾 Salvar do Mapa - Grátis"):
-                if nome:
-                    ws.append_row([datetime.now().strftime("%H%M%S"), nome, tipo_f, tel, cidade, estado, end, "Google Maps Manual FREE", datetime.now().strftime("%Y-%m-%d"), "Novo"])
-                    st.success(f"{nome} salvo!")
+    # Botão que abre Google Maps de verdade (igual sua primeira print)
+    query_url=urllib.parse.quote(f"{tipo} em {cidade} {estado}")
+    gmaps_link=f"https://www.google.com/maps/search/{query_url}/@{lat},{lon},11z"
+
+    st.link_button(f"🔗 ABRIR GOOGLE MAPS - {tipo} em {cidade} (igual sua 1ª print)", gmaps_link, type="primary", use_container_width=True)
+    st.caption("Isso abre o Google Maps real em nova aba, com telefone (66) 99928-3411 igual você viu na Fazenda Morro da Lua")
+
+    # Mapa que FUNCIONA dentro do Streamlit
+    st.markdown("### Mapa dentro do app (OpenStreetMap - funciona)")
+    m=folium.Map(location=[lat,lon], zoom_start=11)
+    folium.Marker([lat,lon], popup=f"{cidade}-{estado}", icon=folium.Icon(color="red", icon="star")).add_to(m)
+    # Busca e plota
+    res=buscar_free(cidade,estado,[tipo])
+    for r in res[:15]:
+        folium.Marker([r["Lat"], r["Lon"]], popup=f"{r['Nome']}", icon=folium.Icon(color="green", icon="leaf")).add_to(m)
+
+    st_folium(m, height=500, use_container_width=True)
+
+    with st.form("manual"):
+        st.markdown("**Viu no Google Maps? Salva aqui:**")
+        c1,c2=st.columns(2)
+        with c1: nome=st.text_input("Nome (ex: FAZENDA MORRO DA LUA)"); tel=st.text_input("Telefone")
+        with c2: end=st.text_input("Endereço"); tipo_f=st.text_input("Tipo", value=tipo)
+        if st.form_submit_button("💾 Salvar"):
+            if nome:
+                ws.append_row([datetime.now().strftime("%H%M%S"), nome, tipo_f, tel, cidade, estado, end, "Google Maps Manual", datetime.now().strftime("%Y-%m-%d"), "Novo"])
+                st.success("Salvo!")
 
 else:
     st.title("📋 Prospects")
     df=pd.DataFrame(ws.get_all_records())
-    if not df.empty:
-        st.dataframe(df, use_container_width=True)
-        st.download_button("📥 Baixar CSV", df.to_csv(index=False), "prospects.csv")
-    else: st.info("Vazio")
+    if not df.empty: st.dataframe(df, use_container_width=True)

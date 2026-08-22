@@ -6,47 +6,43 @@ from datetime import datetime
 import requests
 import re
 
-st.set_page_config(page_title="SUBLIME Agro - Vendas", layout="wide", page_icon="🌿")
+st.set_page_config(page_title="SUBLIME Agro V3", layout="wide", page_icon="🌱")
 
 st.markdown("""
 <style>
-/* ESTREITA 2CM PARA ESQUERDA E AUMENTA FONTE 10% */
+/* SIDEBAR EXATAMENTE IGUAL A FOTO - 2CM ESTREITA + FONTE 10% MAIOR */
 [data-testid="stSidebar"] {
-    background-color: #1a3323!important;
-    width: 250px!important;
-    min-width: 250px!important;
-    max-width: 250px!important;
-    margin-left: -10px!important;
+    background: #1a3523!important;
+    width: 268px!important;
+    min-width: 268px!important;
+    max-width: 268px!important;
+    border-radius: 0 18px 18px 0!important;
+    padding: 0!important;
+    border: none!important;
 }
-[data-testid="stSidebar"] > div:first-child { padding-top: 0!important; padding-left: 8px!important; padding-right: 8px!important; }
-.stApp { background-color: #0f1a12; }
-.block-container { padding-top: 1rem!important; max-width: 95%!important;}
+[data-testid="stSidebar"] > div:first-child { padding: 0!important; }
+.stApp { background-color: #eef3ee; }
 
-/* FONTE +10% */
-h1 { font-size: 1.54rem!important; color: #e8f5e9!important;}
-p, label, span { font-size: 13.2px!important; color: #e8f5e9!important; }
-div[data-testid="stTextInput"] input { height: 30px!important; font-size: 13.2px!important; background: #1a2e1f!important; border: 1px solid #2a4a32!important; color: white!important;}
+/* ESCONDE ELEMENTOS PADRÃO */
+[data-testid="stSidebarNav"], header, footer { display: none!important; }
 div[data-testid="InputInstructions"] { display: none!important; }
 
+/* BOTÕES INVISÍVEIS MAS CLICÁVEIS PARA MANTER LÓGICA */
 .stButton>button {
-    background: #2d5a35;
-    color: white;
-    border-radius: 8px;
-    height: 34px!important;
-    font-size: 13.2px!important; /* +10% */
-    border: 1px solid #3a6b42;
-    width: 100%;
-    text-align: left;
-    padding-left: 10px!important;
+    background: transparent!important;
+    border: none!important;
+    color: #a8c5b0!important;
+    font-size: 14.3px!important;
+    text-align: left!important;
+    padding: 6px 0 6px 34px!important;
+    height: 32px!important;
+    font-weight: 400!important;
+    width: 100%!important;
+    box-shadow: none!important;
 }
-.stButton>button:hover { background: #3a6b42; border-color: #4caf50;}
-.stButton>button[kind="primary"] { background: #4caf50!important; text-align: center!important; font-weight: bold; font-size: 14.3px!important;}
+.stButton>button:hover { color: white!important; background: transparent!important; }
 
-.sidebar-header { background: white; padding: 12px 10px; margin: -10px -8px 0 -8px; display: flex; align-items: center; gap: 8px; width: calc(100% + 16px); }
-.menu-title { color: #7fb88a; font-size: 12.1px!important; font-weight: bold; letter-spacing: 1px; margin: 16px 0 6px 8px;}
-.menu-active { background: #5a8a65!important; border-radius: 8px; margin: 0 4px; }
-.menu-header { padding: 9px 10px; color: white; font-weight: 700; font-size: 14.3px!important; display: flex; justify-content: space-between;}
-.footer-bar { position: fixed; bottom: 0; left: 0; width: 250px; background: #132a1a; padding: 10px 12px; display: flex; justify-content: space-between; color: #8fb996; font-size: 13.2px!important; border-top: 1px solid #1e3d27;}
+.main-container { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -72,14 +68,12 @@ def buscar_cep(cep):
     return None
 
 sh = conecta_gsheets()
-
 def get_or_create_ws(nome, headers):
     for ws in sh.worksheets():
         if ws.title == nome: return ws
     ws = sh.add_worksheet(title=nome, rows=1000, cols=len(headers))
     ws.append_row(headers)
     return ws
-
 def carrega_df_seguro(ws, headers):
     try:
         vals = ws.get_all_values()
@@ -108,55 +102,134 @@ if "sintegra_dados" not in st.session_state: st.session_state.sintegra_dados = {
 if "menu_ativo" not in st.session_state: st.session_state.menu_ativo = "Cadastrar Cliente"
 def set_menu(item): st.session_state.menu_ativo = item
 
+# SIDEBAR EXATAMENTE IGUAL A FOTO
 with st.sidebar:
+    # HEADER BRANCO IGUAL FOTO
     st.markdown("""
-    <div class="sidebar-header">
-        <div style="border:2px solid #2e7d32; border-radius:12px; padding:5px; width:34px; height:34px; display:flex; align-items:center; justify-content:center; font-size:20px;">🌱</div>
-        <div style="line-height:1"><b style="color:#1b3a2a; font-size:18px;">SUBLIME</b><br><b style="color:#1b3a2a; font-size:14px;">Agro</b></div>
-        <div style="background:#e8f5e9; color:#2e7d32; font-size:10px; font-weight:bold; padding:2px 7px; border-radius:12px; margin-left:auto;">V3</div>
+    <div style="background:white; padding:16px 18px; border-radius:18px 18px 0 0; display:flex; align-items:center; gap:10px; margin:0;">
+        <div style="width:44px; height:44px; border:2.5px solid #2e6b3a; border-radius:12px; display:flex; align-items:center; justify-content:center; background:white;">
+            <div style="font-size:28px; line-height:1;">🌿</div>
+        </div>
+        <div style="line-height:0.9">
+            <div style="font-family:Arial Black, sans-serif; font-size:24px; font-weight:900; color:#1a2a4a; letter-spacing:-0.5px;">SUBLIME</div>
+            <div style="font-family:Arial Black, sans-serif; font-size:20px; font-weight:900; color:#1a2a4a; margin-top:-2px;">Agro</div>
+        </div>
+        <div style="margin-left:auto; background:#c5e8c8; color:#1a4a2a; font-size:13px; font-weight:800; padding:4px 10px; border-radius:8px; border:1px solid #a8d5ac;">V3</div>
+    </div>
+    <div style="background:#1a3523; padding:18px 14px 8px 14px;">
+        <div style="color:#8ab896; font-size:12.5px; font-weight:700; letter-spacing:1.2px; margin-left:6px;">MENU</div>
     </div>
     """, unsafe_allow_html=True)
-    st.markdown('<div class="menu-title">MENU</div>', unsafe_allow_html=True)
 
-    st.markdown('<div class="menu-active"><div class="menu-header">👥 CLIENTES <span>▼</span></div></div>', unsafe_allow_html=True)
-    col = st.columns([0.5, 9.5])[1]
-    with col:
-        if st.button("• Lista", key="c_lista", use_container_width=True): set_menu("Lista")
-        label_cad = "• Cadastrar Cliente ●" if st.session_state.menu_ativo=="Cadastrar Cliente" else "• Cadastrar Cliente"
-        if st.button(label_cad, key="c_cad", use_container_width=True): set_menu("Cadastrar Cliente")
-        if st.button("• Importar Planilha", key="c_imp", use_container_width=True): set_menu("Importar Planilha")
-        if st.button("• Mapa Personalizado", key="c_mapa", use_container_width=True): set_menu("Mapa Personalizado")
+    # CLIENTES - FUNDO CLARO = GRUPO ATIVO (IGUAL FOTO)
+    st.markdown("""
+    <div style="background:#1a3523; padding:0 12px 4px 12px;">
+        <div style="background:#6b9c78; border-radius:10px; padding:11px 14px; display:flex; align-items:center; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:8px; color:white; font-weight:800; font-size:14.5px;">
+                <span style="font-size:18px;">👥</span> CLIENTES
+            </div>
+            <div style="color:white; font-size:12px;">▼</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    st.markdown('<div style="margin-top:6px"><div class="menu-header">🚚 FORNECEDORES <span>›</span></div></div>', unsafe_allow_html=True)
-    col2 = st.columns([0.5,9.5])[1]
-    with col2:
-        if st.button("• Lista", key="f_lista", use_container_width=True): set_menu("Fornecedores Lista")
-        if st.button("• Cadastrar Fornecedor", key="f_cad", use_container_width=True): set_menu("Cadastrar Fornecedor")
-        if st.button("• Mapa Fornecedores", key="f_mapa", use_container_width=True): set_menu("Mapa Fornecedores")
+    # SUBITENS CLIENTES
+    c = st.columns([1,20])[1]
+    with c:
+        if st.button("• Lista", key="c_lista"):
+            set_menu("Lista"); st.rerun()
+        # ITEM ATIVO COM SUBLINHADO E BOLINHA VERDE
+        if st.button("• Cadastrar Cliente", key="c_cad_active"):
+            set_menu("Cadastrar Cliente"); st.rerun()
+        if st.button("• Importar Planilha", key="c_imp"):
+            set_menu("Importar Planilha"); st.rerun()
+        if st.button("• Mapa Personalizado", key="c_map"):
+            set_menu("Mapa Personalizado"); st.rerun()
 
-    st.markdown('<div style="margin-top:6px"><div class="menu-header">📦 PRODUTOS <span>›</span></div></div>', unsafe_allow_html=True)
-    col3 = st.columns([0.5,9.5])[1]
-    with col3:
-        if st.button("• Lista", key="p_lista", use_container_width=True): set_menu("Produtos Lista")
-        if st.button("• Cadastrar Produto", key="p_cad", use_container_width=True): set_menu("Cadastrar Produto")
+    # HTML PARA ESTILIZAR O ITEM ATIVO IGUAL FOTO (SOBREPOE)
+    st.markdown(f"""
+    <style>
+    /* ESTILO DOS SUBITENS IGUAL FOTO */
+    div[data-testid="stSidebar"].stButton:nth-of-type(2) button {{
+        color: white!important;
+        font-weight: 700!important;
+        text-decoration: underline!important;
+        text-underline-offset: 4px!important;
+    }}
+    div[data-testid="stSidebar"].stButton:nth-of-type(2) button::after {{
+        content: " ●";
+        color: #4ade80;
+        font-size: 12px;
+    }}
+    </style>
+    <div style="background:#1a3523; padding:12px 12px 6px 12px; margin-top:8px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 4px;">
+            <div style="display:flex; align-items:center; gap:8px; color:white; font-weight:800; font-size:14.5px;">
+                <span style="font-size:18px;">🚚</span> FORNECEDORES
+            </div>
+            <div style="color:#8ab896; font-size:16px;">›</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    st.markdown('<div style="margin-top:6px"><div class="menu-header">⚙️ CONFIGURAÇÕES <span>›</span></div></div>', unsafe_allow_html=True)
-    col4 = st.columns([0.5,9.5])[1]
-    with col4:
-        if st.button("• Limpar Cache", key="cfg1", use_container_width=True): st.cache_resource.clear()
-        if st.button("• Aparência", key="cfg2", use_container_width=True): set_menu("Aparência")
+    c2 = st.columns([1,20])[1]
+    with c2:
+        if st.button("• Lista", key="f_lista"): set_menu("Fornecedores Lista"); st.rerun()
+        if st.button("• Cadastrar Fornecedor", key="f_cad"): set_menu("Cadastrar Fornecedor"); st.rerun()
+        if st.button("• Mapa Fornecedores", key="f_map"): set_menu("Mapa Fornecedores"); st.rerun()
 
-    st.markdown('<div style="height:80px"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="footer-bar"><span>v3.1.4</span><span>⎆ Sair</span></div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div style="background:#1a3523; padding:12px 12px 6px 12px; margin-top:8px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 4px;">
+            <div style="display:flex; align-items:center; gap:8px; color:white; font-weight:800; font-size:14.5px;">
+                <span style="font-size:18px;">📦</span> PRODUTOS
+            </div>
+            <div style="color:#8ab896; font-size:16px;">›</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
+    c3 = st.columns([1,20])[1]
+    with c3:
+        if st.button("• Lista", key="p_lista"): set_menu("Produtos Lista"); st.rerun()
+        if st.button("• Cadastrar Produto", key="p_cad"): set_menu("Cadastrar Produto"); st.rerun()
+
+    st.markdown("""
+    <div style="background:#1a3523; padding:12px 12px 6px 12px; margin-top:8px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 4px;">
+            <div style="display:flex; align-items:center; gap:8px; color:white; font-weight:800; font-size:14.5px;">
+                <span style="font-size:18px;">⚙️</span> CONFIGURAÇÕES
+            </div>
+            <div style="color:#8ab896; font-size:16px;">›</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    c4 = st.columns([1,20])[1]
+    with c4:
+        if st.button("• Limpar Cache", key="cfg1"): st.cache_resource.clear(); st.toast("Cache limpo!")
+        if st.button("• Aparência", key="cfg2"): set_menu("Aparência"); st.rerun()
+
+    st.markdown("""
+    <div style="background:#1a3523; padding:40px 14px 14px 14px; display:flex; justify-content:space-between; align-items:center; border-radius:0 0 18px 18px; margin-top:20px;">
+        <div style="color:#8ab896; font-size:13px;">v3.1.4</div>
+        <div style="color:#c5d9c8; font-size:13px; display:flex; align-items:center; gap:6px;">☰ Sair</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# CONTEÚDO PRINCIPAL
 menu = st.session_state.menu_ativo
 
 if menu=="Lista":
+    st.markdown('<div class="main-container">', unsafe_allow_html=True)
     st.title("👨‍🌾 Clientes - Lista")
     st.dataframe(df_clientes, use_container_width=True, height=600)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 elif menu=="Cadastrar Cliente":
+    st.markdown('<div class="main-container">', unsafe_allow_html=True)
     st.title("➕ Cadastrar Cliente")
+
     arquivo = st.file_uploader("📄 Upload Sintegra (opcional)", type=["pdf"], label_visibility="collapsed")
     if arquivo:
         try:
@@ -174,8 +247,9 @@ elif menu=="Cadastrar Cliente":
             if dados: st.success(f"✅ {dados}")
         except Exception as e: st.error(str(e))
 
+    st.divider()
     c_cep, c_btn = st.columns([4,1])
-    with c_cep: cep_input=st.text_input("CEP *", value=st.session_state.cep_last, key="cep_final", label_visibility="collapsed", placeholder="CEP *")
+    with c_cep: cep_input=st.text_input("CEP *", value=st.session_state.cep_last, key="cep_final", placeholder="78048-000", label_visibility="collapsed")
     with c_btn: buscar=st.button("🔍 Buscar CEP", use_container_width=True)
     if buscar and cep_input:
         d=buscar_cep(cep_input)
@@ -204,6 +278,10 @@ elif menu=="Cadastrar Cliente":
         else:
             ws_clientes.append_row([len(df_clientes)+1, nome, telefone, cidade, estado.upper(), fazenda, cpf, cep_input, endereco, numero, complemento, ie, datetime.now().strftime("%Y-%m-%d")])
             st.success(f"Cliente {nome} salvo!"); st.balloons(); st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
 else:
+    st.markdown('<div class="main-container">', unsafe_allow_html=True)
     st.title(menu)
     st.info(f"Módulo {menu} em desenvolvimento")
+    st.markdown('</div>', unsafe_allow_html=True)
